@@ -160,8 +160,17 @@ def validate_config(config: Mapping[str, Any]) -> None:
         raise ValueError("rounds must be positive")
     if float(get_path(config, "federated.server_learning_rate")) <= 0:
         raise ValueError("server_learning_rate must be positive")
+    for method_name, value in config["method"].get("server_learning_rates", {}).items():
+        if method_name not in METHODS or float(value) <= 0:
+            raise ValueError(
+                f"method.server_learning_rates.{method_name} must name a known method "
+                "and be positive"
+            )
     if float(get_path(config, "attack.update_scale")) <= 0:
         raise ValueError("attack.update_scale must be positive")
+    scaffold_control_scale = float(config["method"].get("scaffold_control_scale", 1.0))
+    if not 0.0 < scaffold_control_scale <= 1.0:
+        raise ValueError("method.scaffold_control_scale must be in (0, 1]")
     update_scales = get_path(config, "attack.update_scales")
     for attack_name in ATTACKS:
         if float(update_scales[attack_name]) <= 0:
@@ -184,4 +193,5 @@ def experiment_run_dir(config: Mapping[str, Any]) -> Path:
     method = str(get_path(config, "method.name"))
     seed = int(get_path(config, "experiment.seed"))
     return root / model / attack / method / f"seed_{seed}"
+
 

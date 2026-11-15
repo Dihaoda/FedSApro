@@ -69,3 +69,20 @@ def test_attacker_domain_fraction_must_be_valid() -> None:
             overrides={"data.attacker_amazon_fraction": 1.1},
         )
 
+
+def test_scaffold_control_scale_must_be_valid() -> None:
+    with pytest.raises(ValueError, match="scaffold_control_scale"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            overrides={"method.scaffold_control_scale": 0.0},
+        )
+
+
+def test_method_server_learning_rate_must_be_valid() -> None:
+    with pytest.raises(ValueError, match="server_learning_rates.fedprox"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            overrides={"method.server_learning_rates.fedprox": 0.0},
+        )
+
+

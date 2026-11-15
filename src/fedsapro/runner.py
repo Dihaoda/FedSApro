@@ -222,7 +222,13 @@ def run_experiment(
     labels = list(get_path(config, "data.labels"))
     max_length = int(get_path(config, "federated.max_length"))
     eval_batch_size = max(1, int(get_path(config, "federated.eval_batch_size")))
-    server_learning_rate = float(get_path(config, "federated.server_learning_rate"))
+    default_server_learning_rate = float(
+        get_path(config, "federated.server_learning_rate")
+    )
+    method_server_learning_rates = config["method"].get("server_learning_rates", {})
+    server_learning_rate = float(
+        method_server_learning_rates.get(method, default_server_learning_rate)
+    )
     attack_scales = get_path(config, "attack.update_scales")
     attack_update_scale = float(
         attack_scales.get(attack_name, get_path(config, "attack.update_scale"))
@@ -438,4 +444,5 @@ def run_experiment(
     summary = summarize_run(config, run_dir)
     LOGGER.info("Run completed: accepted=%s summary=%s", summary["accepted"], run_dir / "summary.json")
     return summary
+
 

@@ -64,7 +64,8 @@ def train_local(
     if method == "scaffold":
         if client_control is None or server_control is None:
             raise ValueError("SCAFFOLD requires client and server control vectors")
-        correction = server_control - client_control
+        control_scale = float(config["method"].get("scaffold_control_scale", 1.0))
+        correction = (server_control - client_control) * control_scale
         correction_tensors: list[torch.Tensor] = []
         correction_offset = 0
         for _, parameter in named:
@@ -169,4 +170,5 @@ def train_local(
         new_control=new_control,
         control_delta=control_delta,
     )
+
 

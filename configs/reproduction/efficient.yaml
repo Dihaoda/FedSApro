@@ -69,6 +69,7 @@ method:
   name: fedavg
   fedprox_mu: 0.01
   scaffold_server_lr: 0.5
+  scaffold_control_scale: 1.0
   indexguard:
     topk_fraction: 0.10
     clusters: 2
@@ -93,3 +94,4 @@ reporting:
   accuracy_tolerance_points: 3.0
   hssr_tolerance_points: 5.0
   run_class: efficient_single_seed_reproduction
+
