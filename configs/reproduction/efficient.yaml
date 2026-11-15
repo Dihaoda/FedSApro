@@ -61,7 +61,7 @@ attack:
 method:
   name: fedavg
   fedprox_mu: 0.01
-  scaffold_server_lr: 1.0
+  scaffold_server_lr: 0.5
   indexguard:
     topk_fraction: 0.10
     clusters: 2
