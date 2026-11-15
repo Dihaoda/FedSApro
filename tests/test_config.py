@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from fedsapro.config import ATTACKS, METHODS, PAPER_MODEL_KEYS, load_yaml, resolve_config
 
 
@@ -34,4 +36,12 @@ def test_efficient_profile_supports_small_qwen_alias() -> None:
     )
     assert config["model"]["names"]["qwen2.5-0.5b"] == "Qwen/Qwen2.5-0.5B-Instruct"
     assert config["reporting"]["target_model_aliases"]["qwen2.5-0.5b"] == "qwen2.5-1.5b"
+
+
+def test_server_learning_rate_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="server_learning_rate"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            overrides={"federated.server_learning_rate": 0.0},
+        )
 

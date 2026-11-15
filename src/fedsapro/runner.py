@@ -204,6 +204,7 @@ def run_experiment(
     labels = list(get_path(config, "data.labels"))
     max_length = int(get_path(config, "federated.max_length"))
     eval_batch_size = max(1, int(get_path(config, "federated.eval_batch_size")))
+    server_learning_rate = float(get_path(config, "federated.server_learning_rate"))
 
     for round_number in range(start_round, rounds + 1):
         started = time.monotonic()
@@ -275,7 +276,7 @@ def run_experiment(
             root_delta=root_delta,
             generator=generator,
         )
-        global_vector = global_vector + aggregation.delta
+        global_vector = global_vector + server_learning_rate * aggregation.delta
         unpack_parameters(named_parameters, global_vector)
 
         client_log_rows: list[dict[str, Any]] = []

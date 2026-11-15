@@ -43,8 +43,9 @@ Pilot/calibration changes are applied as explicit dotted overrides and are captu
 resolved configuration, for example `--set federated.rounds=5 --set federated.eval_every=1`.
 The efficient single-GPU profile in `configs/reproduction/efficient.yaml` uses the same clients,
 attacks, methods, effective batch size, and LoRA rank, with a sequence-classification head,
-64-token truncation, and two communication rounds. It is reported separately from the frozen
-50-round paper configuration.
+48-token truncation, two communication rounds, and a server learning rate of 2.0 to compress
+more global adaptation into each round. It is reported separately from the frozen 50-round paper
+configuration.
 
 A restart-safe matrix runner is also included. It defaults to the small Qwen2.5-1.5B model,
 skips completed cells, resumes checkpoints, and preserves an append-only event manifest:

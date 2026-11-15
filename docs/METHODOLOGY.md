@@ -6,6 +6,11 @@ For a fixed model and seed, all methods use the same persisted client partition 
 adapter initialization. Local minibatch seeds are derived only from `(seed, round, client_id)`.
 Changing the defense therefore does not silently change the examples or their order.
 
+The efficient profile applies a server learning rate of 2.0 to every aggregation method. This
+uniformly scales the aggregated update and is recorded in each resolved configuration; it is a
+round-compression strategy for the two-round single-GPU study, not a change to any defense score.
+The frozen paper profile keeps the conventional server learning rate of 1.0.
+
 ## Classification objective
 
 FedSApro uses Qwen's two-class sequence-classification head and applies rank-8 LoRA only to the
