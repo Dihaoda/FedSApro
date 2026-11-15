@@ -52,4 +52,3 @@ Each run writes:
 
 See `docs/METHODOLOGY.md` for the implementation choices that are underspecified by the paper.
 
-

@@ -1,0 +1,81 @@
+experiment:
+  name: heterogeneous_benign_suppression
+  seed: 2026
+  output_root: results
+  data_root: data/paper_v1
+  model_cache: models
+
+model:
+  key: qwen2.5-1.5b
+  names:
+    qwen2.5-1.5b: Qwen/Qwen2.5-1.5B-Instruct
+    qwen2.5-3b: Qwen/Qwen2.5-3B-Instruct
+    qwen2.5-7b: Qwen/Qwen2.5-7B-Instruct
+  dtype: bfloat16
+  gradient_checkpointing: false
+  lora:
+    rank: 8
+    alpha: 16
+    dropout: 0.0
+    target_modules: [q_proj, v_proj]
+
+data:
+  partition_seed: 2026
+  amazon_dataset: amazon_polarity
+  imdb_dataset: stanfordnlp/imdb
+  num_clients: 30
+  standard_clients: 18
+  heterogeneous_clients: 6
+  attacker_clients: 6
+  samples_per_client: 500
+  heterogeneous_amazon_fraction: 0.6
+  test_samples_per_domain: 2000
+  root_samples: 100
+  labels: [negative, positive]
+  trigger: I watched this 3D movie.
+
+federated:
+  rounds: 50
+  clients_per_round: 30
+  local_epochs: 1
+  batch_size: 16
+  learning_rate: 0.0001
+  max_length: 256
+  max_grad_norm: 1.0
+  weight_decay: 0.0
+  eval_every: 50
+  checkpoint_every: 5
+
+attack:
+  name: none
+  label_flip_fraction: 0.30
+  backdoor_fraction: 0.10
+  backdoor_target: 1
+
+method:
+  name: fedavg
+  fedprox_mu: 0.01
+  scaffold_server_lr: 1.0
+  indexguard:
+    topk_fraction: 0.10
+    clusters: 2
+    cohesion_margin: 0.05
+    minority_ratio: 0.70
+    fallback: none
+  flame:
+    min_cluster_size: 2
+    min_samples: 1
+    noise_multiplier: 0.001
+  fltrust:
+    root_epochs: 1
+
+diagnostics:
+  hssr_tau: 0.25
+  coefficient_epsilon: 1.0e-12
+
+reporting:
+  target_file: configs/paper/targets.yaml
+  accuracy_tolerance_points: 2.0
+  hssr_tolerance_points: 5.0
+  run_class: single_seed_reproduction
+
