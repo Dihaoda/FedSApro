@@ -98,6 +98,8 @@ def resolve_config(
                     "rounds": 1,
                     "clients_per_round": 3,
                     "batch_size": 2,
+                    "micro_batch_size": 2,
+                    "eval_batch_size": 2,
                     "max_length": 64,
                     "eval_every": 1,
                 },
@@ -141,6 +143,10 @@ def validate_config(config: Mapping[str, Any]) -> None:
         raise ValueError("The heterogeneous Amazon sample count must be an even integer")
     if int(get_path(config, "federated.rounds")) < 1:
         raise ValueError("rounds must be positive")
+    effective_batch = int(get_path(config, "federated.batch_size"))
+    micro_batch = int(get_path(config, "federated.micro_batch_size"))
+    if micro_batch < 1 or effective_batch < micro_batch or effective_batch % micro_batch:
+        raise ValueError("batch_size must be a positive multiple of micro_batch_size")
 
 
 def config_digest(config: Mapping[str, Any]) -> str:

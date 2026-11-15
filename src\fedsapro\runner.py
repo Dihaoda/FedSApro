@@ -34,6 +34,7 @@ CLIENT_FIELDS = [
     "sample_count",
     "steps",
     "mean_loss",
+    "peak_memory_mb",
     "update_norm",
     "raw_coefficient",
     "effective_coefficient",
@@ -202,7 +203,7 @@ def run_experiment(
     checkpoint_every = int(get_path(config, "federated.checkpoint_every"))
     labels = list(get_path(config, "data.labels"))
     max_length = int(get_path(config, "federated.max_length"))
-    eval_batch_size = max(1, int(get_path(config, "federated.batch_size")))
+    eval_batch_size = max(1, int(get_path(config, "federated.eval_batch_size")))
 
     for round_number in range(start_round, rounds + 1):
         started = time.monotonic()
@@ -232,16 +233,18 @@ def run_experiment(
             local_metadata[client_id] = {
                 "steps": result.steps,
                 "mean_loss": result.mean_loss,
+                "peak_memory_mb": result.peak_memory_mb,
                 "update_norm": float(torch.linalg.vector_norm(result.delta).item()),
             }
             LOGGER.info(
-                "round=%d client=%d role=%s steps=%d loss=%.6f norm=%.6f",
+                "round=%d client=%d role=%s steps=%d loss=%.6f norm=%.6f peak_mb=%.1f",
                 round_number,
                 client_id,
                 role,
                 result.steps,
                 result.mean_loss,
                 local_metadata[client_id]["update_norm"],
+                local_metadata[client_id]["peak_memory_mb"],
             )
 
         if method == "scaffold":
@@ -287,6 +290,7 @@ def run_experiment(
                     "sample_count": update.sample_count,
                     "steps": metadata["steps"],
                     "mean_loss": f"{metadata['mean_loss']:.10g}",
+                    "peak_memory_mb": f"{metadata['peak_memory_mb']:.6f}",
                     "update_norm": f"{metadata['update_norm']:.10g}",
                     "raw_coefficient": f"{aggregation.raw_coefficients[update.client_id]:.10g}",
                     "effective_coefficient": f"{aggregation.effective_coefficients[update.client_id]:.10g}",

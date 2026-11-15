@@ -19,6 +19,7 @@ class LocalTrainingResult:
     delta: torch.Tensor
     steps: int
     mean_loss: float
+    peak_memory_mb: float
     new_control: torch.Tensor | None = None
     control_delta: torch.Tensor | None = None
 
@@ -42,12 +43,15 @@ def train_local(
     model.train()
     learning_rate = float(get_path(config, "federated.learning_rate"))
     epochs = int(epochs_override or get_path(config, "federated.local_epochs"))
+    effective_batch_size = int(get_path(config, "federated.batch_size"))
+    micro_batch_size = int(get_path(config, "federated.micro_batch_size"))
+    accumulation_steps = effective_batch_size // micro_batch_size
     dataloader = make_dataloader(
         rows,
         tokenizer=tokenizer,
         label_names=list(get_path(config, "data.labels")),
         max_length=int(get_path(config, "federated.max_length")),
-        batch_size=int(get_path(config, "federated.batch_size")),
+        batch_size=micro_batch_size,
         seed=seed,
         shuffle=True,
     )
@@ -95,11 +99,13 @@ def train_local(
     mu = float(get_path(config, "method.fedprox_mu"))
     losses: list[float] = []
     step = 0
-    optimizer.zero_grad(set_to_none=True)
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
     for _ in range(epochs):
-        for batch in dataloader:
+        optimizer.zero_grad(set_to_none=True)
+        micro_batches = len(dataloader)
+        for micro_index, batch in enumerate(dataloader):
             batch = {key: value.to(device, non_blocking=True) for key, value in batch.items()}
-            optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=use_amp):
                 output = model(**batch)
                 loss = output.loss
@@ -109,18 +115,33 @@ def train_local(
                         for (_, parameter), reference in zip(named, proximal_references)
                     )
                     loss = loss + 0.5 * mu * penalty
-            loss.backward()
-            if correction is not None:
-                for (_, parameter), value in zip(named, correction_tensors):
-                    if parameter.grad is not None:
-                        parameter.grad.add_(value.to(parameter.grad.dtype))
-            torch.nn.utils.clip_grad_norm_(parameters, max_grad_norm)
-            optimizer.step()
+            if not torch.isfinite(loss):
+                raise FloatingPointError(
+                    f"Non-finite local loss at micro-batch {micro_index + 1}/{micro_batches}"
+                )
+            group_start = (micro_index // accumulation_steps) * accumulation_steps
+            group_size = min(accumulation_steps, micro_batches - group_start)
+            (loss / group_size).backward()
             losses.append(float(loss.detach().float().item()))
-            step += 1
+            should_step = (micro_index + 1) % accumulation_steps == 0 or micro_index + 1 == micro_batches
+            if should_step:
+                if correction is not None:
+                    for (_, parameter), value in zip(named, correction_tensors):
+                        if parameter.grad is not None:
+                            parameter.grad.add_(value.to(parameter.grad.dtype))
+                grad_norm = torch.nn.utils.clip_grad_norm_(parameters, max_grad_norm)
+                if not torch.isfinite(grad_norm):
+                    raise FloatingPointError(
+                        f"Non-finite gradient norm at optimizer step {step + 1}"
+                    )
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+                step += 1
 
     local_vector = pack_parameters(named, dtype=torch.float32, device="cpu")
     delta = local_vector - global_vector.float().cpu()
+    if not torch.isfinite(delta).all():
+        raise FloatingPointError("Local update contains non-finite values")
     if method == "scaffold":
         assert client_control is not None and server_control is not None
         denominator = max(1, step) * learning_rate
@@ -133,6 +154,11 @@ def train_local(
         delta=delta,
         steps=step,
         mean_loss=sum(losses) / max(1, len(losses)),
+        peak_memory_mb=(
+            float(torch.cuda.max_memory_allocated(device)) / (1024 * 1024)
+            if device.type == "cuda"
+            else 0.0
+        ),
         new_control=new_control,
         control_delta=control_delta,
     )
