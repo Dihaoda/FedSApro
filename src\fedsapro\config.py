@@ -68,6 +68,7 @@ def resolve_config(
     method: str | None = None,
     seed: int | None = None,
     smoke: bool = False,
+    overrides: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     config = load_yaml(path)
     if model is not None:
@@ -103,6 +104,9 @@ def resolve_config(
                 "reporting": {"run_class": "smoke_test"},
             },
         )
+
+    for dotted, value in (overrides or {}).items():
+        set_path(config, dotted, value)
 
     validate_config(config)
     return config

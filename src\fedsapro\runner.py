@@ -133,6 +133,7 @@ def run_experiment(
     dump_yaml(config, run_dir / "resolved_config.yaml")
     provenance = {
         "git_commit": _git_commit(),
+        "github_commit": os.environ.get("FEDSA_GITHUB_COMMIT"),
         "config_digest": config_digest(config),
         "python": platform.python_version(),
         "torch": torch.__version__,

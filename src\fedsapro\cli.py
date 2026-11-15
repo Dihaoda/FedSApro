@@ -4,6 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
+import yaml
+
 from .config import ATTACKS, METHODS, MODEL_KEYS, load_yaml, resolve_config
 from .data import prepare_data, validate_data
 from .diagnostics import summarize_run
@@ -17,6 +19,14 @@ def _common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--method", choices=METHODS)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument(
+        "--set",
+        dest="overrides",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Repeatable dotted configuration override; VALUE is parsed as YAML",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,6 +52,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _resolved(args: argparse.Namespace) -> dict:
+    overrides: dict[str, object] = {}
+    for item in args.overrides:
+        if "=" not in item:
+            raise SystemExit(f"Invalid --set value {item!r}; expected KEY=VALUE")
+        key, value = item.split("=", 1)
+        overrides[key] = yaml.safe_load(value)
     return resolve_config(
         args.config,
         model=args.model,
@@ -49,6 +65,7 @@ def _resolved(args: argparse.Namespace) -> dict:
         method=args.method,
         seed=args.seed,
         smoke=args.smoke,
+        overrides=overrides,
     )
 
 

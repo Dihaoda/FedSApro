@@ -18,8 +18,12 @@ def test_targets_cover_full_matrix() -> None:
 
 
 def test_smoke_config_is_valid_and_small() -> None:
-    config = resolve_config(ROOT / "configs/paper/base.yaml", smoke=True)
+    config = resolve_config(
+        ROOT / "configs/paper/base.yaml",
+        smoke=True,
+        overrides={"federated.rounds": 2},
+    )
     assert config["data"]["num_clients"] == 3
-    assert config["federated"]["rounds"] == 1
+    assert config["federated"]["rounds"] == 2
     assert config["reporting"]["run_class"] == "smoke_test"
 

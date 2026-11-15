@@ -39,6 +39,9 @@ fedsapro run --config configs/paper/base.yaml --method fedavg --attack none \
   --model qwen2.5-1.5b --seed 2026 --smoke
 ```
 
+Pilot/calibration changes are applied as explicit dotted overrides and are captured in the
+resolved configuration, for example `--set federated.rounds=5 --set federated.eval_every=1`.
+
 ## Output contract
 
 Each run writes:
