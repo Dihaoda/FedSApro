@@ -45,3 +45,11 @@ def test_server_learning_rate_must_be_positive() -> None:
             overrides={"federated.server_learning_rate": 0.0},
         )
 
+
+def test_attack_update_scale_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="attack.update_scale"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            overrides={"attack.update_scale": 0.0},
+        )
+

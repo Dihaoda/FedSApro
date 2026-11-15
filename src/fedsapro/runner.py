@@ -205,6 +205,7 @@ def run_experiment(
     max_length = int(get_path(config, "federated.max_length"))
     eval_batch_size = max(1, int(get_path(config, "federated.eval_batch_size")))
     server_learning_rate = float(get_path(config, "federated.server_learning_rate"))
+    attack_update_scale = float(get_path(config, "attack.update_scale"))
 
     for round_number in range(start_round, rounds + 1):
         started = time.monotonic()
@@ -230,12 +231,17 @@ def run_experiment(
                 scaffold_clients[client_id] = result.new_control
                 assert result.control_delta is not None
                 control_deltas.append(result.control_delta)
-            updates.append(ClientUpdate(client_id, role, result.delta, len(client_rows[client_id])))
+            submitted_delta = result.delta
+            if role == ATTACKER and attack_name != "none":
+                submitted_delta = submitted_delta * attack_update_scale
+            updates.append(
+                ClientUpdate(client_id, role, submitted_delta, len(client_rows[client_id]))
+            )
             local_metadata[client_id] = {
                 "steps": result.steps,
                 "mean_loss": result.mean_loss,
                 "peak_memory_mb": result.peak_memory_mb,
-                "update_norm": float(torch.linalg.vector_norm(result.delta).item()),
+                "update_norm": float(torch.linalg.vector_norm(submitted_delta).item()),
             }
             LOGGER.info(
                 "round=%d client=%d role=%s steps=%d loss=%.6f norm=%.6f peak_mb=%.1f",

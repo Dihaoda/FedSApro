@@ -46,6 +46,11 @@ examples. Textual backdoor poisoning prefixes `I watched this 3D movie.` to exac
 malicious client's examples and sets the label to positive. Test accuracy is always measured on
 clean, trigger-free sets, matching Table I.
 
+The efficient two-round profile multiplies submitted malicious updates by 5.0 when an attack is
+active. This standard model-replacement-strength knob compensates for the much shorter horizon;
+it does not change which examples are poisoned, the label-flip/backdoor mechanism, or clean-test
+evaluation. The frozen 50-round paper profile keeps a scale of 1.0.
+
 ## Reproduction status
 
 Paper targets are immutable reference values in `configs/paper/targets.yaml`. Measured outputs are

@@ -154,6 +154,8 @@ def validate_config(config: Mapping[str, Any]) -> None:
         raise ValueError("rounds must be positive")
     if float(get_path(config, "federated.server_learning_rate")) <= 0:
         raise ValueError("server_learning_rate must be positive")
+    if float(get_path(config, "attack.update_scale")) <= 0:
+        raise ValueError("attack.update_scale must be positive")
     effective_batch = int(get_path(config, "federated.batch_size"))
     micro_batch = int(get_path(config, "federated.micro_batch_size"))
     if micro_batch < 1 or effective_batch < micro_batch or effective_batch % micro_batch:

@@ -54,6 +54,7 @@ federated:
 
 attack:
   name: none
+  update_scale: 1.0
   label_flip_fraction: 0.30
   backdoor_fraction: 0.10
   backdoor_target: 1
