@@ -82,6 +82,16 @@ def summarize_run(config: Mapping[str, Any], run_dir: str | Path) -> dict[str, A
         "standard_accuracy": standard_accuracy * 100.0,
         "heterogeneous_accuracy": heterogeneous_accuracy * 100.0,
         "domain_gap": (standard_accuracy - heterogeneous_accuracy) * 100.0,
+        "backdoor_asr_standard": (
+            float(final["backdoor_asr_standard"]) * 100.0
+            if final.get("backdoor_asr_standard")
+            else None
+        ),
+        "backdoor_asr_heterogeneous": (
+            float(final["backdoor_asr_heterogeneous"]) * 100.0
+            if final.get("backdoor_asr_heterogeneous")
+            else None
+        ),
     }
     differences = {
         key: measured[key] - float(target[key])

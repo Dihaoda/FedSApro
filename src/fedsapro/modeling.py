@@ -208,7 +208,7 @@ def load_model(config: Mapping[str, Any], device: torch.device) -> tuple[torch.n
 
 
 @torch.inference_mode()
-def evaluate_accuracy(
+def predict_labels(
     model: torch.nn.Module,
     tokenizer: Any,
     rows: Sequence[Mapping[str, Any]],
@@ -217,13 +217,12 @@ def evaluate_accuracy(
     max_length: int,
     batch_size: int,
     device: torch.device,
-) -> float:
+) -> list[int]:
     model.eval()
     if len(label_names) != int(model.config.num_labels):
         raise ValueError("Evaluation labels do not match the model classification head")
 
-    correct = 0
-    total = 0
+    predictions: list[int] = []
     mixed_dtypes = {
         parameter.dtype
         for parameter in model.parameters()
@@ -243,9 +242,53 @@ def evaluate_accuracy(
         encoded = {key: value.to(device, non_blocking=True) for key, value in encoded.items()}
         with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=use_amp):
             output = model(**encoded)
-        predicted = output.logits.argmax(dim=1).cpu().tolist()
-        truth = [int(row["label"]) for row in chunk]
-        correct += sum(int(left == right) for left, right in zip(predicted, truth))
-        total += len(chunk)
-    return correct / max(1, total)
+        predictions.extend(output.logits.argmax(dim=1).cpu().tolist())
+    return predictions
+
+
+def evaluate_accuracy(
+    model: torch.nn.Module,
+    tokenizer: Any,
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    label_names: Sequence[str],
+    max_length: int,
+    batch_size: int,
+    device: torch.device,
+) -> float:
+    predictions = predict_labels(
+        model,
+        tokenizer,
+        rows,
+        label_names=label_names,
+        max_length=max_length,
+        batch_size=batch_size,
+        device=device,
+    )
+    truth = [int(row["label"]) for row in rows]
+    correct = sum(int(left == right) for left, right in zip(predictions, truth))
+    return correct / max(1, len(truth))
+
+
+def evaluate_target_rate(
+    model: torch.nn.Module,
+    tokenizer: Any,
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    target: int,
+    label_names: Sequence[str],
+    max_length: int,
+    batch_size: int,
+    device: torch.device,
+) -> float:
+    predictions = predict_labels(
+        model,
+        tokenizer,
+        rows,
+        label_names=label_names,
+        max_length=max_length,
+        batch_size=batch_size,
+        device=device,
+    )
+    return sum(int(value == target) for value in predictions) / max(1, len(predictions))
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fedsapro.config import resolve_config
-from fedsapro.data import apply_attack
+from fedsapro.data import apply_attack, triggered_evaluation_rows
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,4 +29,12 @@ def test_textual_backdoor_changes_exact_fraction() -> None:
         if row["poisoned"]:
             assert row["text"].startswith(trigger)
             assert row["label"] == 1
+
+
+def test_triggered_evaluation_excludes_target_class() -> None:
+    triggered = triggered_evaluation_rows(_rows(10), trigger="TRIGGER", target=1)
+    assert len(triggered) == 5
+    assert all(row["label"] == 0 for row in triggered)
+    assert all(row["text"].startswith("TRIGGER ") for row in triggered)
+    assert all(row["trigger_target"] == 1 for row in triggered)
 

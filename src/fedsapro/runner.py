@@ -15,9 +15,16 @@ import torch
 
 from .aggregators import ClientUpdate, aggregate
 from .config import config_digest, dump_yaml, experiment_run_dir, get_path
-from .data import ATTACKER, apply_attack, load_client_rows, role_map, validate_data
+from .data import (
+    ATTACKER,
+    apply_attack,
+    load_client_rows,
+    role_map,
+    triggered_evaluation_rows,
+    validate_data,
+)
 from .diagnostics import summarize_run
-from .modeling import evaluate_accuracy, load_model
+from .modeling import evaluate_accuracy, evaluate_target_rate, load_model
 from .state import build_layout, pack_parameters, trainable_named_parameters, unpack_parameters
 from .training import train_local
 from .utils import atomic_json_dump, derive_seed, read_jsonl, seed_everything
@@ -45,6 +52,8 @@ ROUND_FIELDS = [
     "standard_accuracy",
     "heterogeneous_accuracy",
     "domain_gap",
+    "backdoor_asr_standard",
+    "backdoor_asr_heterogeneous",
     "round_seconds",
 ]
 
@@ -197,6 +206,14 @@ def run_experiment(
     data_root = Path(str(get_path(config, "experiment.data_root")))
     amazon_test = read_jsonl(data_root / "test_amazon.jsonl")
     imdb_test = read_jsonl(data_root / "test_imdb.jsonl")
+    backdoor_target = int(get_path(config, "attack.backdoor_target"))
+    trigger = str(get_path(config, "data.trigger"))
+    triggered_amazon_test = triggered_evaluation_rows(
+        amazon_test, trigger=trigger, target=backdoor_target
+    )
+    triggered_imdb_test = triggered_evaluation_rows(
+        imdb_test, trigger=trigger, target=backdoor_target
+    )
     root_rows = read_jsonl(data_root / "server_root.jsonl")
     rounds = int(get_path(config, "federated.rounds"))
     eval_every = int(get_path(config, "federated.eval_every"))
@@ -334,18 +351,57 @@ def run_experiment(
                 device=device,
             )
             gap = standard_accuracy - heterogeneous_accuracy
+            if attack_name == "textual_backdoor":
+                backdoor_asr_standard = evaluate_target_rate(
+                    model,
+                    tokenizer,
+                    triggered_amazon_test,
+                    target=backdoor_target,
+                    label_names=labels,
+                    max_length=max_length,
+                    batch_size=eval_batch_size,
+                    device=device,
+                )
+                backdoor_asr_heterogeneous = evaluate_target_rate(
+                    model,
+                    tokenizer,
+                    triggered_imdb_test,
+                    target=backdoor_target,
+                    label_names=labels,
+                    max_length=max_length,
+                    batch_size=eval_batch_size,
+                    device=device,
+                )
+            else:
+                backdoor_asr_standard = None
+                backdoor_asr_heterogeneous = None
             LOGGER.info(
-                "round=%d standard_acc=%.4f heterogeneous_acc=%.4f gap=%.4f",
+                "round=%d standard_acc=%.4f heterogeneous_acc=%.4f gap=%.4f "
+                "backdoor_asr_standard=%s backdoor_asr_heterogeneous=%s",
                 round_number,
                 standard_accuracy,
                 heterogeneous_accuracy,
                 gap,
+                "n/a" if backdoor_asr_standard is None else f"{backdoor_asr_standard:.4f}",
+                (
+                    "n/a"
+                    if backdoor_asr_heterogeneous is None
+                    else f"{backdoor_asr_heterogeneous:.4f}"
+                ),
             )
             round_row = {
                 "round": round_number,
                 "standard_accuracy": f"{standard_accuracy:.10g}",
                 "heterogeneous_accuracy": f"{heterogeneous_accuracy:.10g}",
                 "domain_gap": f"{gap:.10g}",
+                "backdoor_asr_standard": (
+                    "" if backdoor_asr_standard is None else f"{backdoor_asr_standard:.10g}"
+                ),
+                "backdoor_asr_heterogeneous": (
+                    ""
+                    if backdoor_asr_heterogeneous is None
+                    else f"{backdoor_asr_heterogeneous:.10g}"
+                ),
                 "round_seconds": f"{time.monotonic() - started:.6f}",
             }
         else:
@@ -354,6 +410,8 @@ def run_experiment(
                 "standard_accuracy": "",
                 "heterogeneous_accuracy": "",
                 "domain_gap": "",
+                "backdoor_asr_standard": "",
+                "backdoor_asr_heterogeneous": "",
                 "round_seconds": f"{time.monotonic() - started:.6f}",
             }
         _append_csv(run_dir / "round_metrics.csv", ROUND_FIELDS, [round_row])

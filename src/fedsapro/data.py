@@ -274,3 +274,18 @@ def apply_attack(
             row["text"] = f"{trigger} {row['text']}"
             row["label"] = target
     return out
+
+
+def triggered_evaluation_rows(
+    rows: list[dict[str, Any]], *, trigger: str, target: int
+) -> list[dict[str, Any]]:
+    """Build a target-class-excluded triggered set for backdoor ASR evaluation."""
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        if int(row["label"]) == target:
+            continue
+        changed = copy.deepcopy(row)
+        changed["text"] = f"{trigger} {row['text']}"
+        changed["trigger_target"] = target
+        out.append(changed)
+    return out
