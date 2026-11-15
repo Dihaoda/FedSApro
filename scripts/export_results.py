@@ -109,10 +109,15 @@ def _conclusion_checks(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _write_markdown(
     output: Path, rows: list[dict[str, Any]], checks: list[dict[str, Any]]
 ) -> None:
+    accepted = sum(bool(row["accepted"]) for row in rows)
     lines = [
         "# FedSApro single-seed reproduction",
         "",
         "Measured values are generated from raw run logs; paper targets remain separate columns.",
+        "",
+        f"Strict target-window acceptance: {accepted}/{len(rows)} cells.",
+        "",
+        "Values are `measured (paper target)` in percentage points.",
         "",
         "| Model | Attack | Method | HSSR | Standard acc. | Heterogeneous acc. | Accepted |",
         "|---|---|---|---:|---:|---:|:---:|",
@@ -120,15 +125,36 @@ def _write_markdown(
     for row in rows:
         lines.append(
             f"| {row['model']} | {row['attack']} | {row['method']} | "
-            f"{float(row['hssr']):.2f} | {float(row['standard_accuracy']):.2f} | "
-            f"{float(row['heterogeneous_accuracy']):.2f} | "
+            f"{float(row['hssr']):.2f} ({float(row['target_hssr']):.2f}) | "
+            f"{float(row['standard_accuracy']):.2f} "
+            f"({float(row['target_standard_accuracy']):.2f}) | "
+            f"{float(row['heterogeneous_accuracy']):.2f} "
+            f"({float(row['target_heterogeneous_accuracy']):.2f}) | "
             f"{'yes' if row['accepted'] else 'no'} |"
         )
+    suppression_supported = sum(bool(item["suppression_increased"]) for item in checks)
+    downstream_supported = sum(
+        bool(item["suppression_increased"])
+        and bool(item["heterogeneous_accuracy_declined"])
+        for item in checks
+    )
+    standard_retained = sum(
+        bool(item["standard_accuracy_retained_within_5_points"]) for item in checks
+    )
     passed = sum(bool(item["conclusion_consistent"]) for item in checks)
     lines.extend(
         [
             "",
             "## Qualitative conclusion audit",
+            "",
+            f"{suppression_supported}/{len(checks)} robust-method comparisons show higher "
+            "HSSR than the paired FedAvg baseline (mechanism-level support).",
+            "",
+            f"{standard_retained}/{len(checks)} retain standard-domain accuracy within five "
+            "percentage points of the paired FedAvg baseline.",
+            "",
+            f"{downstream_supported}/{len(checks)} show both higher HSSR and lower "
+            "heterogeneous-domain accuracy (downstream-impact support).",
             "",
             f"{passed}/{len(checks)} robust-method comparisons satisfy all three predeclared "
             "checks: higher HSSR than FedAvg, lower heterogeneous-domain accuracy, and "

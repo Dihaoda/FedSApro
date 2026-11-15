@@ -66,6 +66,17 @@ python scripts/export_results.py --root results/reproduction_v1 \
   --output reports/reproduction_v1
 ```
 
+## Reproduction status
+
+The committed Qwen2.5-1.5B, seed-2026 matrix contains all 18 attack/method cells. Three cells
+fall inside the deliberately strict paper-target windows. More importantly for the cross-model
+claim, six of nine paired robust-method comparisons have higher HSSR than FedAvg while retaining
+standard-domain accuracy within five percentage points. The short two-round classifier does not
+reproduce the paper's full shifted-domain accuracy decline, so the evidence supports the
+suppression mechanism but not every downstream accuracy effect. See
+`reports/reproduction_v1/REPORT.md` for measured values, immutable paper targets, and the
+predeclared conclusion audit.
+
 ## Output contract
 
 Each run writes:
