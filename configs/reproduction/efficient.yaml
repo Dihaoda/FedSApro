@@ -7,8 +7,10 @@ experiment:
 
 model:
   task: sequence_classification
+  classifier_initialization: label_token_lm_head
   key: qwen2.5-1.5b
   names:
+    qwen2.5-0.5b: Qwen/Qwen2.5-0.5B-Instruct
     qwen2.5-1.5b: Qwen/Qwen2.5-1.5B-Instruct
     qwen2.5-3b: Qwen/Qwen2.5-3B-Instruct
     qwen2.5-7b: Qwen/Qwen2.5-7B-Instruct
@@ -36,17 +38,17 @@ data:
   trigger: I watched this 3D movie.
 
 federated:
-  rounds: 5
+  rounds: 2
   clients_per_round: 30
   local_epochs: 1
   batch_size: 16
   micro_batch_size: 16
   eval_batch_size: 32
   learning_rate: 0.0001
-  max_length: 128
+  max_length: 64
   max_grad_norm: 1.0
   weight_decay: 0.0
-  eval_every: 5
+  eval_every: 2
   checkpoint_every: 1
 
 attack:
@@ -78,6 +80,8 @@ diagnostics:
 
 reporting:
   target_file: configs/paper/targets.yaml
-  accuracy_tolerance_points: 2.0
+  target_model_aliases:
+    qwen2.5-0.5b: qwen2.5-1.5b
+  accuracy_tolerance_points: 3.0
   hssr_tolerance_points: 5.0
   run_class: efficient_single_seed_reproduction

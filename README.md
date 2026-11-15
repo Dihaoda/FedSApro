@@ -43,7 +43,7 @@ Pilot/calibration changes are applied as explicit dotted overrides and are captu
 resolved configuration, for example `--set federated.rounds=5 --set federated.eval_every=1`.
 The efficient single-GPU profile in `configs/reproduction/efficient.yaml` uses the same clients,
 attacks, methods, effective batch size, and LoRA rank, with a sequence-classification head,
-128-token truncation, and five communication rounds. It is reported separately from the frozen
+64-token truncation, and two communication rounds. It is reported separately from the frozen
 50-round paper configuration.
 
 A restart-safe matrix runner is also included. It defaults to the small Qwen2.5-1.5B model,
@@ -55,6 +55,14 @@ python scripts/run_matrix.py --config configs/reproduction/efficient.yaml --seed
 
 Multiple candidate seeds can be supplied with `--try-seeds-until-accepted`; rejected seeds remain
 on disk and are never rewritten as accepted measurements.
+
+After the matrix finishes, export a GitHub-sized evidence bundle with measured and target values
+kept in separate columns:
+
+```bash
+python scripts/export_results.py --root results/reproduction_v1 \
+  --output reports/reproduction_v1
+```
 
 ## Output contract
 

@@ -10,8 +10,10 @@ Changing the defense therefore does not silently change the examples or their or
 
 FedSApro uses Qwen's two-class sequence-classification head and applies rank-8 LoRA only to the
 query and value projections. The small `score` head is trainable and checkpointed with the
-adapter; the transformer backbone remains frozen. This avoids using a generative prompt or a
-particular sentiment-label token as an unreported experimental variable.
+adapter; the transformer backbone remains frozen. The two rows of the score head are initialized
+from Qwen's pretrained language-model output vectors for the configured sentiment-label tokens.
+Inputs end in the documented classification prompt, so the initial two-logit classifier is the
+efficient equivalent of next-token label scoring without materializing full-vocabulary logits.
 
 ## Effective contribution coefficients
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import logging
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
@@ -12,6 +13,15 @@ from .utils import seed_everything
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+def build_prompt(text: str, labels: Sequence[str]) -> str:
+    return (
+        "Task: classify the sentiment of the review.\n"
+        f"Review: {text}\n"
+        f"Answer with exactly one label from {{{', '.join(labels)}}}.\n"
+        "Sentiment:"
+    )
 
 
 class SentimentDataset(Dataset):
@@ -28,11 +38,12 @@ class SentimentDataset(Dataset):
 @dataclass
 class SequenceClassificationCollator:
     tokenizer: Any
+    label_names: Sequence[str]
     max_length: int
 
     def __call__(self, batch: Sequence[Mapping[str, Any]]) -> dict[str, torch.Tensor]:
         encoded = self.tokenizer(
-            [str(row["text"]) for row in batch],
+            [build_prompt(str(row["text"]), self.label_names) for row in batch],
             padding=True,
             truncation=True,
             max_length=self.max_length,
@@ -62,8 +73,45 @@ def make_dataloader(
         generator=generator,
         num_workers=0,
         pin_memory=torch.cuda.is_available(),
-        collate_fn=SequenceClassificationCollator(tokenizer, max_length),
+        collate_fn=SequenceClassificationCollator(tokenizer, label_names, max_length),
     )
+
+
+def _pretrained_label_vectors(
+    model_name: str,
+    tokenizer: Any,
+    label_names: Sequence[str],
+    *,
+    dtype: torch.dtype,
+    cache_dir: str,
+) -> torch.Tensor:
+    from transformers import AutoModelForCausalLM
+
+    candidate_ids: list[int] = []
+    for name in label_names:
+        values = tokenizer.encode(" " + str(name), add_special_tokens=False)
+        if not values:
+            raise RuntimeError(f"Label {name!r} tokenized to an empty sequence")
+        candidate_ids.append(int(values[0]))
+        if len(values) > 1:
+            LOGGER.warning(
+                "Label %r has %d tokens; classifier initialization uses the first token",
+                name,
+                len(values),
+            )
+    causal_model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        dtype=dtype,
+        cache_dir=cache_dir,
+        low_cpu_mem_usage=True,
+    )
+    output_embeddings = causal_model.get_output_embeddings()
+    if output_embeddings is None:
+        raise RuntimeError("The causal language model has no output embeddings")
+    vectors = output_embeddings.weight[candidate_ids].detach().float().cpu().clone()
+    del output_embeddings, causal_model
+    gc.collect()
+    return vectors
 
 
 def load_model(config: Mapping[str, Any], device: torch.device) -> tuple[torch.nn.Module, Any]:
@@ -94,7 +142,25 @@ def load_model(config: Mapping[str, Any], device: torch.device) -> tuple[torch.n
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
+    tokenizer.truncation_side = "left"
     label_names = list(get_path(config, "data.labels"))
+    classifier_initialization = str(
+        config["model"].get("classifier_initialization", "random")
+    )
+    if classifier_initialization == "label_token_lm_head":
+        label_vectors = _pretrained_label_vectors(
+            model_name,
+            tokenizer,
+            label_names,
+            dtype=dtype,
+            cache_dir=cache_dir,
+        )
+    elif classifier_initialization == "random":
+        label_vectors = None
+    else:
+        raise ValueError(
+            f"Unsupported classifier initialization: {classifier_initialization}"
+        )
     id2label = {index: str(name) for index, name in enumerate(label_names)}
     label2id = {name: index for index, name in id2label.items()}
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -110,6 +176,9 @@ def load_model(config: Mapping[str, Any], device: torch.device) -> tuple[torch.n
     model.config.pad_token_id = tokenizer.pad_token_id
     model.config.problem_type = "single_label_classification"
     model.config.use_cache = False
+    if label_vectors is not None:
+        with torch.no_grad():
+            model.score.weight.copy_(label_vectors.to(dtype=model.score.weight.dtype))
     lora = config["model"]["lora"]
     lora_config = LoraConfig(
         task_type=TaskType.SEQ_CLS,
@@ -165,7 +234,7 @@ def evaluate_accuracy(
     for start in range(0, len(rows), batch_size):
         chunk = rows[start : start + batch_size]
         encoded = tokenizer(
-            [str(row["text"]) for row in chunk],
+            [build_prompt(str(row["text"]), label_names) for row in chunk],
             padding=True,
             truncation=True,
             max_length=max_length,

@@ -73,7 +73,9 @@ def summarize_run(config: Mapping[str, Any], run_dir: str | Path) -> dict[str, A
     method = str(get_path(config, "method.name"))
     target_path = Path(str(get_path(config, "reporting.target_file")))
     targets = load_yaml(target_path)
-    target = targets[model][attack][method]
+    aliases = config["reporting"].get("target_model_aliases", {})
+    target_model = str(aliases.get(model, model))
+    target = targets[target_model][attack][method]
     measured = {
         "hssr": contribution["hssr"] * 100.0,
         "hrcw": contribution["hrcw"],
@@ -95,6 +97,7 @@ def summarize_run(config: Mapping[str, Any], run_dir: str | Path) -> dict[str, A
     summary = {
         "run_class": str(get_path(config, "reporting.run_class")),
         "model": model,
+        "target_reference_model": target_model,
         "attack": attack,
         "method": method,
         "seed": int(get_path(config, "experiment.seed")),

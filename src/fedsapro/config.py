@@ -9,7 +9,8 @@ from typing import Any, Mapping
 import yaml
 
 
-MODEL_KEYS = ("qwen2.5-1.5b", "qwen2.5-3b", "qwen2.5-7b")
+PAPER_MODEL_KEYS = ("qwen2.5-1.5b", "qwen2.5-3b", "qwen2.5-7b")
+MODEL_KEYS = ("qwen2.5-0.5b", *PAPER_MODEL_KEYS)
 ATTACKS = ("none", "label_flip", "textual_backdoor")
 METHODS = ("fedavg", "fedprox", "scaffold", "indexguard", "flame", "fltrust")
 
@@ -116,10 +117,18 @@ def resolve_config(
 
 def validate_config(config: Mapping[str, Any]) -> None:
     model = str(get_path(config, "model.key"))
+    task = str(get_path(config, "model.task"))
+    classifier_initialization = str(get_path(config, "model.classifier_initialization"))
     attack = str(get_path(config, "attack.name"))
     method = str(get_path(config, "method.name"))
     if model not in MODEL_KEYS:
         raise ValueError(f"Unknown model {model!r}; choose from {MODEL_KEYS}")
+    if task != "sequence_classification":
+        raise ValueError("FedSApro requires model.task=sequence_classification")
+    if classifier_initialization not in {"random", "label_token_lm_head"}:
+        raise ValueError(
+            "model.classifier_initialization must be random or label_token_lm_head"
+        )
     if attack not in ATTACKS:
         raise ValueError(f"Unknown attack {attack!r}; choose from {ATTACKS}")
     if method not in METHODS:
