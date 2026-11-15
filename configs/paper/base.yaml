@@ -32,6 +32,7 @@ data:
   attacker_clients: 6
   samples_per_client: 500
   heterogeneous_amazon_fraction: 0.6
+  attacker_amazon_fraction: 1.0
   test_samples_per_domain: 2000
   root_samples: 100
   labels: [negative, positive]

@@ -119,20 +119,27 @@ def prepare_data(config: Mapping[str, Any], *, force: bool = False) -> Path:
     used_amazon: set[int] = set()
     used_imdb: set[int] = set()
     samples_per_client = int(get_path(config, "data.samples_per_client"))
-    amazon_per_hetero = int(
-        round(samples_per_client * float(get_path(config, "data.heterogeneous_amazon_fraction")))
+    heterogeneous_amazon_fraction = float(
+        get_path(config, "data.heterogeneous_amazon_fraction")
     )
-    imdb_per_hetero = samples_per_client - amazon_per_hetero
+    attacker_amazon_fraction = float(config["data"].get("attacker_amazon_fraction", 1.0))
     roles = _role_map(config)
     client_files: dict[str, dict[str, Any]] = {}
 
     for client_id, role in roles.items():
         rng = random.Random(derive_seed(seed, 10, client_id))
-        if role == HETEROGENEOUS:
+        if role in {HETEROGENEOUS, ATTACKER}:
+            amazon_fraction = (
+                heterogeneous_amazon_fraction
+                if role == HETEROGENEOUS
+                else attacker_amazon_fraction
+            )
+            amazon_count = int(round(samples_per_client * amazon_fraction))
+            imdb_count = samples_per_client - amazon_count
             rows = _sample_balanced(
                 amazon_train,
                 domain="amazon",
-                count=amazon_per_hetero,
+                count=amazon_count,
                 rng=rng,
                 used=used_amazon,
             )
@@ -140,7 +147,7 @@ def prepare_data(config: Mapping[str, Any], *, force: bool = False) -> Path:
                 _sample_balanced(
                     imdb_train,
                     domain="imdb",
-                    count=imdb_per_hetero,
+                    count=imdb_count,
                     rng=rng,
                     used=used_imdb,
                 )

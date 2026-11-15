@@ -61,3 +61,11 @@ def test_attack_specific_update_scale_must_be_positive() -> None:
             overrides={"attack.update_scales.label_flip": 0.0},
         )
 
+
+def test_attacker_domain_fraction_must_be_valid() -> None:
+    with pytest.raises(ValueError, match="attacker Amazon fraction"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            overrides={"data.attacker_amazon_fraction": 1.1},
+        )
+
