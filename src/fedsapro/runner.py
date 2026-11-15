@@ -205,7 +205,10 @@ def run_experiment(
     max_length = int(get_path(config, "federated.max_length"))
     eval_batch_size = max(1, int(get_path(config, "federated.eval_batch_size")))
     server_learning_rate = float(get_path(config, "federated.server_learning_rate"))
-    attack_update_scale = float(get_path(config, "attack.update_scale"))
+    attack_scales = get_path(config, "attack.update_scales")
+    attack_update_scale = float(
+        attack_scales.get(attack_name, get_path(config, "attack.update_scale"))
+    )
 
     for round_number in range(start_round, rounds + 1):
         started = time.monotonic()

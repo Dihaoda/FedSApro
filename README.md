@@ -44,9 +44,9 @@ resolved configuration, for example `--set federated.rounds=5 --set federated.ev
 The efficient single-GPU profile in `configs/reproduction/efficient.yaml` uses the same clients,
 attacks, methods, effective batch size, and LoRA rank, with a sequence-classification head,
 48-token truncation, two communication rounds, a server learning rate of 2.0, and a 5.0 malicious
-update scale when an attack is active. These explicit knobs compress global adaptation and attack
-strength into the short run. The profile is reported separately from the frozen 50-round paper
-configuration.
+update scale for label flipping (textual backdoor remains 1.0). These explicit knobs compress
+global adaptation and label-flip strength into the short run. The profile is reported separately
+from the frozen 50-round paper configuration.
 
 A restart-safe matrix runner is also included. It defaults to the small Qwen2.5-1.5B model,
 skips completed cells, resumes checkpoints, and preserves an append-only event manifest:

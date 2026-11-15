@@ -75,6 +75,13 @@ def fedavg(updates: Sequence[ClientUpdate], *, norm_aware: bool = False) -> Aggr
     )
 
 
+def scaffold(updates: Sequence[ClientUpdate], *, server_lr: float) -> AggregationResult:
+    result = fedavg(updates, norm_aware=True)
+    result.delta.mul_(float(server_lr))
+    result.diagnostics["server_lr"] = float(server_lr)
+    return result
+
+
 def topk_indices(vector: torch.Tensor, fraction: float) -> list[int]:
     if not 0 < fraction <= 1:
         raise ValueError("topk fraction must be in (0, 1]")
@@ -312,8 +319,10 @@ def aggregate(
 ) -> AggregationResult:
     if method == "fedavg":
         return fedavg(updates)
-    if method in {"fedprox", "scaffold"}:
+    if method == "fedprox":
         return fedavg(updates, norm_aware=True)
+    if method == "scaffold":
+        return scaffold(updates, server_lr=float(method_config["scaffold_server_lr"]))
     if method == "indexguard":
         return indexguard(updates, layout, method_config["indexguard"])
     if method == "flame":

@@ -5,6 +5,7 @@ from fedsapro.aggregators import (
     fedavg,
     fltrust,
     index_overlap_similarity,
+    scaffold,
     topk_indices,
 )
 
@@ -42,4 +43,14 @@ def test_fltrust_diagnostic_coefficient_includes_norm_matching() -> None:
     assert torch.isclose(
         torch.tensor(result.effective_coefficients[1]), torch.tensor(1.0)
     )
+
+
+def test_scaffold_server_lr_scales_the_aggregated_model_delta() -> None:
+    updates = [
+        ClientUpdate(0, "standard", torch.tensor([1.0, 3.0]), 1),
+        ClientUpdate(1, "heterogeneous", torch.tensor([3.0, 5.0]), 3),
+    ]
+    result = scaffold(updates, server_lr=0.5)
+    assert torch.allclose(result.delta, torch.tensor([1.25, 2.25]))
+    assert result.diagnostics["server_lr"] == 0.5
 

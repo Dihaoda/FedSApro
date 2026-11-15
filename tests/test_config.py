@@ -53,3 +53,11 @@ def test_attack_update_scale_must_be_positive() -> None:
             overrides={"attack.update_scale": 0.0},
         )
 
+
+def test_attack_specific_update_scale_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="attack.update_scales.label_flip"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            overrides={"attack.update_scales.label_flip": 0.0},
+        )
+
