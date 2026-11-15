@@ -36,6 +36,7 @@ data:
   root_samples: 100
   labels: [negative, positive]
   trigger: I watched this 3D movie.
+  trigger_position: prefix
 
 federated:
   rounds: 2

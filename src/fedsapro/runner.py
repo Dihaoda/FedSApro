@@ -208,11 +208,12 @@ def run_experiment(
     imdb_test = read_jsonl(data_root / "test_imdb.jsonl")
     backdoor_target = int(get_path(config, "attack.backdoor_target"))
     trigger = str(get_path(config, "data.trigger"))
+    trigger_position = str(config["data"].get("trigger_position", "prefix"))
     triggered_amazon_test = triggered_evaluation_rows(
-        amazon_test, trigger=trigger, target=backdoor_target
+        amazon_test, trigger=trigger, target=backdoor_target, position=trigger_position
     )
     triggered_imdb_test = triggered_evaluation_rows(
-        imdb_test, trigger=trigger, target=backdoor_target
+        imdb_test, trigger=trigger, target=backdoor_target, position=trigger_position
     )
     root_rows = read_jsonl(data_root / "server_root.jsonl")
     rounds = int(get_path(config, "federated.rounds"))

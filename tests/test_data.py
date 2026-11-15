@@ -38,3 +38,10 @@ def test_triggered_evaluation_excludes_target_class() -> None:
     assert all(row["text"].startswith("TRIGGER ") for row in triggered)
     assert all(row["trigger_target"] == 1 for row in triggered)
 
+
+def test_triggered_evaluation_can_suffix_trigger() -> None:
+    triggered = triggered_evaluation_rows(
+        _rows(4), trigger="TRIGGER", target=1, position="suffix"
+    )
+    assert all(row["text"].endswith(" TRIGGER") for row in triggered)
+

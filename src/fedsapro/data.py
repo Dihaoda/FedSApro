@@ -262,6 +262,7 @@ def apply_attack(
     random.Random(seed).shuffle(indices)
     selected = set(indices[:count])
     trigger = str(get_path(config, "data.trigger"))
+    trigger_position = str(config["data"].get("trigger_position", "prefix"))
     target = int(get_path(config, "attack.backdoor_target"))
     for index, row in enumerate(out):
         poisoned = index in selected
@@ -271,13 +272,21 @@ def apply_attack(
         if attack == "label_flip":
             row["label"] = 1 - int(row["label"])
         else:
-            row["text"] = f"{trigger} {row['text']}"
+            row["text"] = _insert_trigger(str(row["text"]), trigger, trigger_position)
             row["label"] = target
     return out
 
 
+def _insert_trigger(text: str, trigger: str, position: str) -> str:
+    if position == "prefix":
+        return f"{trigger} {text}"
+    if position == "suffix":
+        return f"{text} {trigger}"
+    raise ValueError(f"Unknown trigger position: {position}")
+
+
 def triggered_evaluation_rows(
-    rows: list[dict[str, Any]], *, trigger: str, target: int
+    rows: list[dict[str, Any]], *, trigger: str, target: int, position: str = "prefix"
 ) -> list[dict[str, Any]]:
     """Build a target-class-excluded triggered set for backdoor ASR evaluation."""
     out: list[dict[str, Any]] = []
@@ -285,7 +294,7 @@ def triggered_evaluation_rows(
         if int(row["label"]) == target:
             continue
         changed = copy.deepcopy(row)
-        changed["text"] = f"{trigger} {row['text']}"
+        changed["text"] = _insert_trigger(str(row["text"]), trigger, position)
         changed["trigger_target"] = target
         out.append(changed)
     return out
