@@ -55,6 +55,41 @@ def _read_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def _read_csv(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def build_evidence_bundle(root: Path) -> dict[str, Any]:
+    runs: list[dict[str, Any]] = []
+    for summary_path in sorted(root.rglob("summary.json")):
+        run_dir = summary_path.parent
+        provenance_path = run_dir / "provenance.json"
+        config_path = run_dir / "resolved_config.yaml"
+        runs.append(
+            {
+                "run_dir": str(run_dir.relative_to(root)),
+                "summary": _read_json(summary_path),
+                "provenance": (
+                    _read_json(provenance_path) if provenance_path.exists() else None
+                ),
+                "resolved_config_yaml": (
+                    config_path.read_text(encoding="utf-8") if config_path.exists() else None
+                ),
+                "round_metrics": _read_csv(run_dir / "round_metrics.csv"),
+                "client_rounds": _read_csv(run_dir / "client_rounds.csv"),
+            }
+        )
+    return {
+        "schema_version": 1,
+        "source_root": str(root),
+        "run_count": len(runs),
+        "runs": runs,
+    }
+
+
 def _average_optional(left: Any, right: Any) -> float | None:
     if left is None or right is None:
         return None
@@ -134,6 +169,23 @@ def build_rows(root: Path) -> list[dict[str, Any]]:
 
 
 def conclusion_checks(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    observed_cells = {
+        (str(row["model"]), str(row["attack"]), str(row["method"]), int(row["seed"]))
+        for row in rows
+    }
+    study_pairs = {
+        (str(row["model"]), int(row["seed"]))
+        for row in rows
+    }
+    expected_cells = {
+        (model, attack, method, seed)
+        for model, seed in study_pairs
+        for attack in ATTACK_ORDER
+        for method in METHOD_ORDER
+    }
+    missing_cells = sorted(expected_cells - observed_cells)
+    unexpected_cells = sorted(observed_cells - expected_cells)
+
     checks: list[dict[str, Any]] = []
     for row in rows:
         if row["attack"] == "none" or row["method"] == "fedavg":
@@ -179,6 +231,11 @@ def conclusion_checks(rows: list[dict[str, Any]]) -> dict[str, Any]:
             }
         )
     return {
+        "matrix_complete": not missing_cells and not unexpected_cells,
+        "expected_cell_count": len(expected_cells),
+        "observed_cell_count": len(observed_cells),
+        "missing_cells": [list(cell) for cell in missing_cells],
+        "unexpected_cells": [list(cell) for cell in unexpected_cells],
         "attack_gap_checks": attack_gap_checks,
         "defense_checks": checks,
         "all_attacks_increase_fedavg_gap": bool(attack_gap_checks)
@@ -233,6 +290,8 @@ def _write_markdown(
             "",
             "## Predeclared conclusion checks",
             "",
+            f"- Complete attack/method matrix: {checks['observed_cell_count']}/"
+            f"{checks['expected_cell_count']} cells.",
             f"- Attacks increasing the paired FedAvg domain gap: {gaps_passed}/{len(gap_checks)}.",
             f"- Attacked defenses outperforming paired FedAvg on mean accuracy, and also on ASR "
             f"for textual backdoor: {defenses_passed}/{len(defense_checks)}.",
@@ -261,10 +320,13 @@ def main() -> None:
     (output / "conclusion_checks.json").write_text(
         json.dumps(checks, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    (output / "evidence_bundle.json").write_text(
+        json.dumps(build_evidence_bundle(root), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     _write_markdown(output / "REPORT.md", rows, checks)
     print(f"Exported {len(rows)} measured runs to {output}")
 
 
 if __name__ == "__main__":
     main()
-
