@@ -131,8 +131,15 @@ def train_local(
                             parameter.grad.add_(value.to(parameter.grad.dtype))
                 grad_norm = torch.nn.utils.clip_grad_norm_(parameters, max_grad_norm)
                 if not torch.isfinite(grad_norm):
+                    nonfinite = [
+                        name
+                        for name, parameter in named
+                        if parameter.grad is not None
+                        and not torch.isfinite(parameter.grad).all()
+                    ]
                     raise FloatingPointError(
-                        f"Non-finite gradient norm at optimizer step {step + 1}"
+                        f"Non-finite gradient norm at optimizer step {step + 1}; "
+                        f"parameters={nonfinite[:8]} total={len(nonfinite)}"
                     )
                 optimizer.step()
                 optimizer.zero_grad(set_to_none=True)

@@ -1,11 +1,12 @@
 experiment:
-  name: heterogeneous_benign_suppression
+  name: heterogeneous_benign_suppression_efficient
   seed: 2026
-  output_root: results
+  output_root: results/reproduction_v1
   data_root: data/paper_v1
   model_cache: models
 
 model:
+  task: sequence_classification
   key: qwen2.5-1.5b
   names:
     qwen2.5-1.5b: Qwen/Qwen2.5-1.5B-Instruct
@@ -35,18 +36,18 @@ data:
   trigger: I watched this 3D movie.
 
 federated:
-  rounds: 50
+  rounds: 5
   clients_per_round: 30
   local_epochs: 1
   batch_size: 16
-  micro_batch_size: 4
-  eval_batch_size: 4
+  micro_batch_size: 16
+  eval_batch_size: 32
   learning_rate: 0.0001
-  max_length: 256
+  max_length: 128
   max_grad_norm: 1.0
   weight_decay: 0.0
-  eval_every: 50
-  checkpoint_every: 5
+  eval_every: 5
+  checkpoint_every: 1
 
 attack:
   name: none
@@ -79,5 +80,4 @@ reporting:
   target_file: configs/paper/targets.yaml
   accuracy_tolerance_points: 2.0
   hssr_tolerance_points: 5.0
-  run_class: single_seed_reproduction
-
+  run_class: efficient_single_seed_reproduction

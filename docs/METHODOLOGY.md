@@ -6,6 +6,13 @@ For a fixed model and seed, all methods use the same persisted client partition 
 adapter initialization. Local minibatch seeds are derived only from `(seed, round, client_id)`.
 Changing the defense therefore does not silently change the examples or their order.
 
+## Classification objective
+
+FedSApro uses Qwen's two-class sequence-classification head and applies rank-8 LoRA only to the
+query and value projections. The small `score` head is trainable and checkpointed with the
+adapter; the transformer backbone remains frozen. This avoids using a generative prompt or a
+particular sentiment-label token as an unreported experimental variable.
+
 ## Effective contribution coefficients
 
 The paper defines HRCW and HSSR over each method's final nonnegative effective contribution
@@ -16,9 +23,11 @@ coefficient before normalization:
 - FedProx and SCAFFOLD use sample-count weights multiplied by the submitted update norm relative
   to the round's median standard-benign update norm. This makes local shrinkage/drift correction
   visible without treating either optimizer as an explicit malicious-client detector.
-- IndexGuard and FLAME use zero for rejected clients and the sample-count weight for retained
-  clients.
-- FLTrust uses the rectified cosine trust score after norm matching to the server root update.
+- IndexGuard uses zero for rejected clients and the sample-count weight for retained clients.
+- FLAME uses zero for rejected clients; a retained client's diagnostic coefficient is its
+  sample-count weight multiplied by its norm-clipping scale.
+- FLTrust's diagnostic coefficient is the rectified cosine trust score multiplied by the
+  root-to-client norm-matching scale.
 
 This convention is explicit because FedProx/SCAFFOLD do not natively output per-client trust
 weights, while the paper reports non-zero suppression rates for both.

@@ -216,18 +216,28 @@ def flame(
     norms = torch.tensor([torch.linalg.vector_norm(update.delta.float()) for update in updates])
     clip_norm = float(torch.median(norms).item())
     clipped: list[ClientUpdate] = []
+    clip_scales: dict[int, float] = {}
     for update in updates:
         norm = max(float(torch.linalg.vector_norm(update.delta.float()).item()), 1e-12)
         scale = min(1.0, clip_norm / norm)
+        clip_scales[update.client_id] = scale
         clipped.append(
             ClientUpdate(update.client_id, update.role, update.delta.float() * scale, update.sample_count)
         )
     raw = _sample_coefficients(updates)
-    effective = {
+    aggregation_coefficients = {
         update.client_id: raw[update.client_id] if keep else 0.0
         for update, keep in zip(updates, retained)
     }
-    aggregate = _weighted_mean(clipped, effective)
+    effective = {
+        update.client_id: raw[update.client_id] * clip_scales[update.client_id] if keep else 0.0
+        for update, keep in zip(updates, retained)
+    }
+    # FLAME applies clipping before the retained clients are averaged.  Use the
+    # unscaled sample coefficients for the actual aggregate; ``effective`` is
+    # the equivalent coefficient on each original, unclipped update and is
+    # therefore the value required by HRCW/HSSR diagnostics.
+    aggregate = _weighted_mean(clipped, aggregation_coefficients)
     multiplier = float(config.get("noise_multiplier", 0.0))
     if multiplier > 0:
         coordinate_std = multiplier * clip_norm / math.sqrt(max(1, aggregate.numel()))
@@ -242,6 +252,7 @@ def flame(
             "cluster_labels": labels.tolist(),
             "retained_cluster": retained_label,
             "clip_norm": clip_norm,
+            "clip_scales": clip_scales,
         },
     )
 
@@ -251,6 +262,7 @@ def fltrust(updates: Sequence[ClientUpdate], root_delta: torch.Tensor) -> Aggreg
     root_norm = max(float(torch.linalg.vector_norm(root).item()), 1e-12)
     raw = _sample_coefficients(updates)
     trust: dict[int, float] = {}
+    norm_scales: dict[int, float] = {}
     normalised: list[ClientUpdate] = []
     for update in updates:
         value = update.delta.float().cpu()
@@ -258,6 +270,7 @@ def fltrust(updates: Sequence[ClientUpdate], root_delta: torch.Tensor) -> Aggreg
         cosine = float(torch.dot(value, root).item() / (norm * root_norm))
         score = max(0.0, cosine)
         trust[update.client_id] = score
+        norm_scales[update.client_id] = root_norm / norm
         normalised.append(
             ClientUpdate(
                 update.client_id,
@@ -271,12 +284,20 @@ def fltrust(updates: Sequence[ClientUpdate], root_delta: torch.Tensor) -> Aggreg
         fallback = True
     else:
         fallback = False
+    effective = {
+        update.client_id: trust[update.client_id] * norm_scales[update.client_id]
+        for update in updates
+    }
     return AggregationResult(
         delta=_weighted_mean(normalised, trust),
         raw_coefficients=raw,
-        effective_coefficients=trust,
+        effective_coefficients=effective,
         selected={update.client_id: trust[update.client_id] > 0 for update in updates},
-        diagnostics={"root_norm": root_norm, "zero_trust_fallback": fallback},
+        diagnostics={
+            "root_norm": root_norm,
+            "norm_scales": norm_scales,
+            "zero_trust_fallback": fallback,
+        },
     )
 
 

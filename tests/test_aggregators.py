@@ -3,6 +3,7 @@ import torch
 from fedsapro.aggregators import (
     ClientUpdate,
     fedavg,
+    fltrust,
     index_overlap_similarity,
     topk_indices,
 )
@@ -26,4 +27,19 @@ def test_topk_and_ios_are_rescaling_invariant() -> None:
     similarity = index_overlap_similarity(signatures)
     assert similarity[0, 1].item() == 1.0
     assert similarity[0, 2].item() == 0.0
+
+
+def test_fltrust_diagnostic_coefficient_includes_norm_matching() -> None:
+    updates = [
+        ClientUpdate(0, "standard", torch.tensor([2.0, 0.0]), 1),
+        ClientUpdate(1, "heterogeneous", torch.tensor([0.5, 0.5]), 1),
+    ]
+    result = fltrust(updates, torch.tensor([1.0, 0.0]))
+
+    # Both updates are positively aligned, but their equivalent coefficients on
+    # the original vectors also include FLTrust's root-norm matching factor.
+    assert result.effective_coefficients[0] == 0.5
+    assert torch.isclose(
+        torch.tensor(result.effective_coefficients[1]), torch.tensor(1.0)
+    )
 

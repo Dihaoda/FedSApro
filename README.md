@@ -41,6 +41,20 @@ fedsapro run --config configs/paper/base.yaml --method fedavg --attack none \
 
 Pilot/calibration changes are applied as explicit dotted overrides and are captured in the
 resolved configuration, for example `--set federated.rounds=5 --set federated.eval_every=1`.
+The efficient single-GPU profile in `configs/reproduction/efficient.yaml` uses the same clients,
+attacks, methods, effective batch size, and LoRA rank, with a sequence-classification head,
+128-token truncation, and five communication rounds. It is reported separately from the frozen
+50-round paper configuration.
+
+A restart-safe matrix runner is also included. It defaults to the small Qwen2.5-1.5B model,
+skips completed cells, resumes checkpoints, and preserves an append-only event manifest:
+
+```bash
+python scripts/run_matrix.py --config configs/reproduction/efficient.yaml --seeds 2026
+```
+
+Multiple candidate seeds can be supplied with `--try-seeds-until-accepted`; rejected seeds remain
+on disk and are never rewritten as accepted measurements.
 
 ## Output contract
 
