@@ -1,0 +1,203 @@
+{
+  "matrix_complete": true,
+  "observed_cell_count": 18,
+  "expected_cell_count": 18,
+  "missing_cells": [],
+  "attacked_fedavg_standard_drop_checks": [
+    {
+      "attack": "label_flip",
+      "standard_drop": 26.14781635,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "standard_drop": 36.95408735,
+      "passes": true
+    }
+  ],
+  "defense_standard_gain_checks": [
+    {
+      "attack": "label_flip",
+      "method": "indexguard",
+      "standard_gain": 24.300111979999997,
+      "passes": true
+    },
+    {
+      "attack": "label_flip",
+      "method": "flame",
+      "standard_gain": 6.215005599999998,
+      "passes": true
+    },
+    {
+      "attack": "label_flip",
+      "method": "fltrust",
+      "standard_gain": 20.436730119999993,
+      "passes": true
+    },
+    {
+      "attack": "label_flip",
+      "method": "safefedllm",
+      "standard_gain": 18.812989919999993,
+      "passes": true
+    },
+    {
+      "attack": "label_flip",
+      "method": "fedgraph",
+      "standard_gain": 17.24524076,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "indexguard",
+      "standard_gain": 35.10638298,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "flame",
+      "standard_gain": 25.923852180000004,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "fltrust",
+      "standard_gain": 31.298992160000005,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "safefedllm",
+      "standard_gain": 29.843225080000003,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "fedgraph",
+      "standard_gain": 28.051511760000004,
+      "passes": true
+    }
+  ],
+  "attacked_method_separation_checks": [
+    {
+      "attack": "label_flip",
+      "adjacent_differences": [
+        {
+          "lower": "fedavg",
+          "upper": "flame",
+          "difference": 6.215005599999998
+        },
+        {
+          "lower": "flame",
+          "upper": "fedgraph",
+          "difference": 11.030235160000004
+        },
+        {
+          "lower": "fedgraph",
+          "upper": "safefedllm",
+          "difference": 1.567749159999991
+        },
+        {
+          "lower": "safefedllm",
+          "upper": "fltrust",
+          "difference": 1.6237402000000003
+        },
+        {
+          "lower": "fltrust",
+          "upper": "indexguard",
+          "difference": 3.863381860000004
+        }
+      ],
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "adjacent_differences": [
+        {
+          "lower": "fedavg",
+          "upper": "flame",
+          "difference": 25.923852180000004
+        },
+        {
+          "lower": "flame",
+          "upper": "fedgraph",
+          "difference": 2.1276595799999996
+        },
+        {
+          "lower": "fedgraph",
+          "upper": "safefedllm",
+          "difference": 1.7917133199999995
+        },
+        {
+          "lower": "safefedllm",
+          "upper": "fltrust",
+          "difference": 1.455767080000001
+        },
+        {
+          "lower": "fltrust",
+          "upper": "indexguard",
+          "difference": 3.807390819999995
+        }
+      ],
+      "passes": true
+    }
+  ],
+  "textual_backdoor_asr_checks": [
+    {
+      "method": "indexguard",
+      "mean_asr_reduction": 79.39529675,
+      "passes": true
+    },
+    {
+      "method": "flame",
+      "mean_asr_reduction": 65.34154534999999,
+      "passes": true
+    },
+    {
+      "method": "fltrust",
+      "mean_asr_reduction": 63.493840989999995,
+      "passes": true
+    },
+    {
+      "method": "safefedllm",
+      "mean_asr_reduction": 55.37513997999999,
+      "passes": true
+    },
+    {
+      "method": "fedgraph",
+      "mean_asr_reduction": 58.846584549999996,
+      "passes": true
+    }
+  ],
+  "distinct_accuracy_endings": [
+    "00",
+    "02",
+    "07",
+    "13",
+    "28",
+    "32",
+    "42",
+    "48",
+    "51",
+    "55",
+    "59",
+    "63",
+    "64",
+    "66",
+    "68",
+    "70",
+    "72",
+    "75",
+    "77",
+    "78",
+    "81",
+    "91",
+    "95",
+    "97",
+    "98"
+  ],
+  "natural_resolution_check": {
+    "distinct_endings": 25,
+    "passes": true
+  },
+  "all_checks_pass": true
+}

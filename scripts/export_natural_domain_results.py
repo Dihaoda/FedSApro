@@ -16,6 +16,7 @@ def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Export the natural domain-attack study")
     parser.add_argument("--root", default="results/natural_domain_attack_study_v3")
     parser.add_argument("--output", default="reports/natural_domain_attack_study_v3")
+    parser.add_argument("--title", default="Qwen2.5-0.5B natural domain-attack study")
     return parser.parse_args()
 
 
@@ -87,10 +88,12 @@ def conclusion_checks(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return checks
 
 
-def _write_report(path: Path, rows: list[dict[str, Any]], checks: dict[str, Any]) -> None:
+def _write_report(
+    path: Path, rows: list[dict[str, Any]], checks: dict[str, Any], title: str
+) -> None:
     by_cell = {(row["attack"], row["method"]): row for row in rows}
     lines = [
-        "# Qwen2.5-0.5B natural domain-attack study",
+        f"# {title}",
         "",
         "Measured seed-2026 results using 1,786 randomly sampled examples per domain. HSSR, HRCW, paper targets, and synthetic jitter are not used.",
         "",
@@ -137,7 +140,7 @@ def main() -> None:
         writer.writerows({field: row.get(field) for field in FIELDS} for row in rows)
     (output / "summary.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (output / "conclusion_checks.json").write_text(json.dumps(checks, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    _write_report(output / "REPORT.md", rows, checks)
+    _write_report(output / "REPORT.md", rows, checks, args.title)
     _copy_evidence(root, output, rows)
     print(f"Exported {len(rows)} runs; checks pass={checks['all_checks_pass']}")
 

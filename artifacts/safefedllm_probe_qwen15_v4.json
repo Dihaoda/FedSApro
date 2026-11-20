@@ -1,0 +1,31 @@
+{
+  "artifact": "artifacts/safefedllm_probe_qwen15_v4.pt",
+  "model": "qwen2.5-1.5b",
+  "feature_dim": 14337,
+  "calibration_seeds": [
+    9101
+  ],
+  "metrics_in_sample": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0,
+    "examples": 90,
+    "harmful_examples": 6
+  },
+  "source_files": [
+    {
+      "path": "results/calibration/qwen15_v4/qwen2.5-1.5b/label_flip/fedavg/seed_9101/safefedllm_features_round_001.pt",
+      "sha256": "fd127a0eb68bf005a4863ff1181b0876a0d1f7dc8b6007e450cbd3c0938e1d40"
+    },
+    {
+      "path": "results/calibration/qwen15_v4/qwen2.5-1.5b/none/fedavg/seed_9101/safefedllm_features_round_001.pt",
+      "sha256": "d7dbf61183a631a970dfe4b566d5c0dd8bf036239f7ce11d91f5950e64d794f2"
+    },
+    {
+      "path": "results/calibration/qwen15_v4/qwen2.5-1.5b/textual_backdoor/fedavg/seed_9101/safefedllm_features_round_001.pt",
+      "sha256": "bedf0f1e01c638edc458b082e4dd7996c8aa17bd7b50c0d6e9b159172822c5e5"
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+experiment:
+  name: qwen15_natural_domain_attack_study
+  seed: 2026
+  output_root: results/natural_domain_attack_study_qwen15_v4
+  data_root: data/natural_domain_attack_study_v3
+  model_cache: models
+model:
+  task: sequence_classification
+  classifier_initialization: label_token_lm_head
+  federate_classifier_head: false
+  key: qwen2.5-1.5b
+  names:
+    qwen2.5-0.5b: Qwen/Qwen2.5-0.5B-Instruct
+    qwen2.5-1.5b: Qwen/Qwen2.5-1.5B-Instruct
+    qwen2.5-3b: Qwen/Qwen2.5-3B-Instruct
+    qwen2.5-7b: Qwen/Qwen2.5-7B-Instruct
+  dtype: bfloat16
+  gradient_checkpointing: false
+  lora:
+    rank: 8
+    alpha: 16
+    dropout: 0.0
+    target_modules:
+    - q_proj
+    - v_proj
+data:
+  partition_seed: 2026
+  amazon_dataset: amazon_polarity
+  imdb_dataset: stanfordnlp/imdb
+  num_clients: 30
+  standard_clients: 18
+  heterogeneous_clients: 9
+  attacker_clients: 3
+  samples_per_client: 300
+  heterogeneous_amazon_fraction: 0.0
+  attacker_amazon_fraction: 1.0
+  test_samples_per_domain: 1786
+  test_profile: random_length_pools
+  test_length_pool_fraction: 0.3
+  root_samples: 200
+  labels:
+  - negative
+  - positive
+  trigger: movie
+  trigger_position: suffix
+federated:
+  rounds: 1
+  clients_per_round: 30
+  local_epochs: 1
+  batch_size: 16
+  micro_batch_size: 16
+  eval_batch_size: 32
+  learning_rate: 0.0001
+  server_learning_rate: 3.0
+  max_length: 48
+  max_grad_norm: 1.0
+  weight_decay: 0.0
+  eval_every: 1
+  checkpoint_every: 1
+attack:
+  name: none
+  update_scale: 1.0
+  scale_scope: lora_only
+  update_scales:
+    none: 1.0
+    label_flip: 4.0
+    textual_backdoor: 2.3
+  label_flip_fraction: 1.0
+  backdoor_fraction: 1.0
+  backdoor_target: 0
+method:
+  name: indexguard
+  fedprox_mu: 0.01
+  scaffold_server_lr: 0.75
+  scaffold_control_scale: 0.001
+  server_learning_rates:
+    indexguard: 5.0
+    flame: 6.0
+    fltrust: 5.0
+    safefedllm: 8.0
+    fedgraph: 9.0
+  indexguard:
+    topk_fraction: 0.1
+    clusters: 3
+    cohesion_margin: -0.02
+    minority_ratio: 1.0
+    fallback: none
+    norm_ratio_cap: 2.0
+  flame:
+    min_cluster_size: 12
+    min_samples: 1
+    noise_multiplier: 0.0
+  fltrust:
+    root_epochs: 3
+  safefedllm:
+    probe_path: artifacts/safefedllm_probe_qwen15_v4.pt
+    eta: 20.0
+    min_weight: 0.01
+    selection_threshold: 0.5
+  fedgraph:
+    feature_scope: full_delta
+    similarity_threshold: 0.8
+    min_neighbors: 0
+    min_cluster_size: 16
+    min_samples: 1
+    allow_single_cluster: true
+calibration:
+  capture_safefedllm_features: false
+  shared_update_cache_dir: artifacts/shared_updates/natural_domain_attack_qwen15_v4
+  shared_update_cache_reference_scales:
+    none: 1.0
+    label_flip: 5.0
+    textual_backdoor: 3.0
+diagnostics:
+  hssr_tau: 0.25
+  coefficient_epsilon: 1.0e-12
+reporting:
+  target_file: configs/paper/targets.yaml
+  target_model_aliases:
+    qwen2.5-0.5b: qwen2.5-1.5b
+  accuracy_tolerance_points: 3.0
+  hssr_tolerance_points: 5.0
+  run_class: qwen15_natural_domain_attack_study
