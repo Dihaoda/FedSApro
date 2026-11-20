@@ -25,7 +25,13 @@ from .data import (
 )
 from .diagnostics import summarize_run
 from .modeling import evaluate_accuracy, evaluate_target_rate, load_model
-from .state import build_layout, pack_parameters, trainable_named_parameters, unpack_parameters
+from .state import (
+    build_layout,
+    gather_first_lora_b,
+    pack_parameters,
+    trainable_named_parameters,
+    unpack_parameters,
+)
 from .training import train_local
 from .utils import atomic_json_dump, derive_seed, read_jsonl, seed_everything
 
@@ -260,7 +266,15 @@ def run_experiment(
                 control_deltas.append(result.control_delta)
             submitted_delta = result.delta
             if role == ATTACKER and attack_name != "none":
-                submitted_delta = submitted_delta * attack_update_scale
+                scale_scope = str(config["attack"].get("scale_scope", "all"))
+                if scale_scope == "all":
+                    submitted_delta = submitted_delta * attack_update_scale
+                elif scale_scope == "lora_only":
+                    submitted_delta = submitted_delta.clone()
+                    for offset, count in layout.qv_slices:
+                        submitted_delta[offset : offset + count].mul_(attack_update_scale)
+                else:
+                    raise ValueError(f"Unknown attack.scale_scope: {scale_scope}")
             updates.append(
                 ClientUpdate(client_id, role, submitted_delta, len(client_rows[client_id]))
             )
@@ -284,6 +298,29 @@ def run_experiment(
         if method == "scaffold":
             assert scaffold_server is not None
             scaffold_server = scaffold_server + torch.stack(control_deltas).sum(dim=0) / len(roles)
+
+        if bool(config.get("calibration", {}).get("capture_safefedllm_features", False)):
+            feature_records = []
+            for update in updates:
+                feature_records.append(
+                    {
+                        "client_id": update.client_id,
+                        "role": update.role,
+                        "attack": attack_name if update.role == ATTACKER else "none",
+                        "round": round_number,
+                        "feature": gather_first_lora_b(update.delta, layout).half().cpu(),
+                    }
+                )
+            torch.save(
+                {
+                    "schema_version": 1,
+                    "model": str(get_path(config, "model.key")),
+                    "seed": seed,
+                    "config_digest": config_digest(config),
+                    "records": feature_records,
+                },
+                run_dir / f"safefedllm_features_round_{round_number:03d}.pt",
+            )
 
         root_delta = None
         if method == "fltrust":
@@ -444,5 +481,4 @@ def run_experiment(
     summary = summarize_run(config, run_dir)
     LOGGER.info("Run completed: accepted=%s summary=%s", summary["accepted"], run_dir / "summary.json")
     return summary
-
 

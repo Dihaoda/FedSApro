@@ -10,6 +10,7 @@ results/
 logs/
 checkpoints/
 *.pt
+!artifacts/safefedllm_probe_qwen05.pt
 *.safetensors
 wandb/
 

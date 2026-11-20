@@ -190,6 +190,10 @@ def load_model(config: Mapping[str, Any], device: torch.device) -> tuple[torch.n
         bias="none",
     )
     model = get_peft_model(model, lora_config)
+    if not bool(config["model"].get("federate_classifier_head", True)):
+        for name, parameter in model.named_parameters():
+            if "score" in name.lower():
+                parameter.requires_grad_(False)
     # Keep trainable parameters as FP32 master weights.  In particular, PEFT's
     # sequence-classification ``score`` module otherwise inherits the BF16
     # backbone dtype; its small randomly initialized weight can overflow during

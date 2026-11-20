@@ -8,7 +8,7 @@ import numpy as np
 import torch
 
 from .data import STANDARD
-from .state import ParameterLayout, gather_qv
+from .state import ParameterLayout, gather_first_lora_b, gather_qv
 
 
 @dataclass
@@ -308,6 +308,178 @@ def fltrust(updates: Sequence[ClientUpdate], root_delta: torch.Tensor) -> Aggreg
     )
 
 
+def _load_safefedllm_probe(config: Mapping[str, Any]) -> dict[str, Any]:
+    probe_path = str(config.get("probe_path", "")).strip()
+    if not probe_path:
+        raise ValueError("Safe-FedLLM requires method.safefedllm.probe_path")
+    try:
+        probe = torch.load(probe_path, map_location="cpu", weights_only=False)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Safe-FedLLM probe not found: {probe_path}") from exc
+    if not isinstance(probe, dict) or probe.get("schema_version") != 1:
+        raise ValueError("Unsupported Safe-FedLLM probe artifact")
+    return probe
+
+
+def safefedllm(
+    updates: Sequence[ClientUpdate], layout: ParameterLayout, config: Mapping[str, Any]
+) -> AggregationResult:
+    """Safe-FedLLM Shadow-Level weighting with a held-out terminal-delta probe.
+
+    The official method classifies intermediate LoRA deltas and maps the harmful
+    step ratio ``r`` to ``(1-r)^eta``. This federated classifier harness exposes
+    one terminal delta per client, so a held-out linear probe's harmful
+    probability is used as the soft single-snapshot ratio. Probe fitting is kept
+    outside the formal seed and the artifact records its calibration provenance.
+    """
+    probe = _load_safefedllm_probe(config)
+    weight = torch.as_tensor(probe["coefficient"], dtype=torch.float32).reshape(-1)
+    bias = float(probe["intercept"])
+    feature_dim = int(probe["feature_dim"])
+    eta = float(config.get("eta", 7.0))
+    minimum = float(config.get("min_weight", 0.01))
+    threshold = float(config.get("selection_threshold", 0.5))
+    raw = _sample_coefficients(updates)
+    probabilities: dict[int, float] = {}
+    security: dict[int, float] = {}
+    effective: dict[int, float] = {}
+    selected: dict[int, bool] = {}
+    for update in updates:
+        feature = gather_first_lora_b(update.delta.float().cpu(), layout)
+        magnitude = torch.linalg.vector_norm(feature)
+        feature = feature / magnitude.clamp_min(1e-12)
+        feature_policy = str(probe.get("feature_policy", "first_transformer_layer_lora_B_l2"))
+        if feature_policy == "first_transformer_layer_lora_B_l2_plus_log_norm":
+            feature = torch.cat((feature, torch.log1p(magnitude).reshape(1)))
+        elif feature_policy != "first_transformer_layer_lora_B_l2":
+            raise ValueError(f"Unsupported Safe-FedLLM feature policy: {feature_policy}")
+        if feature.numel() != feature_dim or weight.numel() != feature_dim:
+            raise ValueError(
+                f"Safe-FedLLM probe dimension {feature_dim} does not match update "
+                f"feature dimension {feature.numel()}"
+            )
+        probability = float(torch.sigmoid(torch.dot(feature, weight) + bias).item())
+        factor = max(minimum, (1.0 - probability) ** eta)
+        probabilities[update.client_id] = probability
+        security[update.client_id] = factor
+        effective[update.client_id] = raw[update.client_id] * factor
+        selected[update.client_id] = probability < threshold
+    return AggregationResult(
+        delta=_weighted_mean(updates, effective),
+        raw_coefficients=raw,
+        effective_coefficients=effective,
+        selected=selected,
+        diagnostics={
+            "variant": "shadow-level-terminal-delta",
+            "probe_path": str(config.get("probe_path")),
+            "probe_calibration": probe.get("calibration"),
+            "harmful_probability": probabilities,
+            "security_factor": security,
+            "eta": eta,
+        },
+    )
+
+
+def fedgraph(
+    updates: Sequence[ClientUpdate],
+    config: Mapping[str, Any],
+    layout: ParameterLayout | None = None,
+) -> AggregationResult:
+    """Graph-centrality clustering defense from FedGraph.
+
+    Clients are connected when their cosine similarity exceeds the configured
+    threshold. Degree, betweenness, and closeness centralities form the paper's
+    fingerprint, and HDBSCAN marks points outside the benign-majority cluster as
+    outliers. An all-outlier safety guard keeps every client when no valid cluster
+    can be formed.
+    """
+    import networkx as nx
+    from sklearn.cluster import HDBSCAN
+
+    size = len(updates)
+    if size < 3:
+        return fedavg(updates)
+    feature_scope = str(config.get("feature_scope", "full_delta"))
+    if feature_scope == "first_lora_b":
+        if layout is None:
+            raise ValueError("FedGraph first_lora_b feature scope requires a parameter layout")
+        matrix = torch.stack(
+            [gather_first_lora_b(update.delta.float().cpu(), layout) for update in updates]
+        )
+    elif feature_scope == "full_delta":
+        matrix = torch.stack([update.delta.float().cpu() for update in updates])
+    else:
+        raise ValueError(f"Unsupported FedGraph feature scope: {feature_scope}")
+    matrix = torch.nn.functional.normalize(matrix, p=2, dim=1)
+    similarity = (matrix @ matrix.T).clamp(-1.0, 1.0).numpy()
+    threshold = float(config.get("similarity_threshold", 0.8))
+    min_neighbors = max(0, int(config.get("min_neighbors", 1)))
+    graph = nx.Graph()
+    graph.add_nodes_from(range(size))
+    for left in range(size):
+        for right in range(left + 1, size):
+            if similarity[left, right] >= threshold:
+                graph.add_edge(left, right, weight=float(similarity[left, right]))
+    for left in range(size):
+        neighbors = set(graph.neighbors(left))
+        if len(neighbors) >= min_neighbors:
+            continue
+        candidates = np.argsort(-similarity[left])
+        for right in candidates:
+            right = int(right)
+            if right == left or right in neighbors:
+                continue
+            graph.add_edge(left, right, weight=float(similarity[left, right]))
+            neighbors.add(right)
+            if len(neighbors) >= min_neighbors:
+                break
+
+    degree = dict(graph.degree())
+    betweenness = nx.betweenness_centrality(graph, normalized=True, weight=None)
+    closeness = nx.closeness_centrality(graph)
+    features = np.asarray(
+        [[degree[index], betweenness[index], closeness[index]] for index in range(size)],
+        dtype=np.float64,
+    )
+    min_cluster_size = int(config.get("min_cluster_size", size // 2 + 1))
+    min_cluster_size = min(size, max(2, min_cluster_size))
+    min_samples = max(1, int(config.get("min_samples", 1)))
+    labels = HDBSCAN(
+        min_cluster_size=min_cluster_size,
+        min_samples=min_samples,
+        allow_single_cluster=bool(config.get("allow_single_cluster", True)),
+        copy=True,
+    ).fit_predict(features)
+    counts = {int(label): int(np.sum(labels == label)) for label in np.unique(labels)}
+    retained = [int(label) != -1 for label in labels]
+    fallback = not any(retained)
+    if fallback:
+        retained = [True] * size
+    raw = _sample_coefficients(updates)
+    effective = {
+        update.client_id: raw[update.client_id] if keep else 0.0
+        for update, keep in zip(updates, retained)
+    }
+    return AggregationResult(
+        delta=_weighted_mean(updates, effective),
+        raw_coefficients=raw,
+        effective_coefficients=effective,
+        selected={update.client_id: keep for update, keep in zip(updates, retained)},
+        diagnostics={
+            "feature_scope": feature_scope,
+            "similarity_threshold": threshold,
+            "similarity_matrix": similarity.tolist(),
+            "centrality_features": features.tolist(),
+            "cluster_labels": labels.tolist(),
+            "cluster_sizes": counts,
+            "min_cluster_size": min_cluster_size,
+            "min_samples": min_samples,
+            "outlier_count": int(np.sum(labels == -1)),
+            "all_outlier_fallback": fallback,
+        },
+    )
+
+
 def aggregate(
     method: str,
     updates: Sequence[ClientUpdate],
@@ -333,5 +505,9 @@ def aggregate(
         if root_delta is None:
             raise ValueError("FLTrust requires a server root update")
         return fltrust(updates, root_delta)
+    if method == "safefedllm":
+        return safefedllm(updates, layout, method_config["safefedllm"])
+    if method == "fedgraph":
+        return fedgraph(updates, method_config["fedgraph"], layout)
     raise ValueError(f"Unknown aggregation method: {method}")
 

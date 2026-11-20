@@ -12,7 +12,17 @@ import yaml
 PAPER_MODEL_KEYS = ("qwen2.5-1.5b", "qwen2.5-3b", "qwen2.5-7b")
 MODEL_KEYS = ("qwen2.5-0.5b", *PAPER_MODEL_KEYS)
 ATTACKS = ("none", "label_flip", "textual_backdoor")
-METHODS = ("fedavg", "fedprox", "scaffold", "indexguard", "flame", "fltrust")
+PAPER_METHODS = ("fedavg", "fedprox", "scaffold", "indexguard", "flame", "fltrust")
+METHODS = (
+    "fedavg",
+    "fedprox",
+    "scaffold",
+    "indexguard",
+    "flame",
+    "fltrust",
+    "safefedllm",
+    "fedgraph",
+)
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
@@ -133,6 +143,14 @@ def validate_config(config: Mapping[str, Any]) -> None:
         raise ValueError(f"Unknown attack {attack!r}; choose from {ATTACKS}")
     if method not in METHODS:
         raise ValueError(f"Unknown method {method!r}; choose from {METHODS}")
+    if str(config["data"].get("test_profile", "random")) not in {
+        "random",
+        "length_extremes",
+        "lexical_length_extremes",
+    }:
+        raise ValueError(
+            "data.test_profile must be random, length_extremes, or lexical_length_extremes"
+        )
 
     roles = sum(
         int(get_path(config, f"data.{key}"))
@@ -168,6 +186,8 @@ def validate_config(config: Mapping[str, Any]) -> None:
             )
     if float(get_path(config, "attack.update_scale")) <= 0:
         raise ValueError("attack.update_scale must be positive")
+    if str(config["attack"].get("scale_scope", "all")) not in {"all", "lora_only"}:
+        raise ValueError("attack.scale_scope must be all or lora_only")
     scaffold_control_scale = float(config["method"].get("scaffold_control_scale", 1.0))
     if not 0.0 < scaffold_control_scale <= 1.0:
         raise ValueError("method.scaffold_control_scale must be in (0, 1]")
@@ -175,6 +195,18 @@ def validate_config(config: Mapping[str, Any]) -> None:
     for attack_name in ATTACKS:
         if float(update_scales[attack_name]) <= 0:
             raise ValueError(f"attack.update_scales.{attack_name} must be positive")
+    if method == "safefedllm":
+        safe_config = get_path(config, "method.safefedllm")
+        if float(safe_config.get("eta", 7.0)) <= 0:
+            raise ValueError("method.safefedllm.eta must be positive")
+        min_weight = float(safe_config.get("min_weight", 0.0))
+        if not 0.0 <= min_weight < 1.0:
+            raise ValueError("method.safefedllm.min_weight must be in [0, 1)")
+    if method == "fedgraph":
+        graph_config = get_path(config, "method.fedgraph")
+        threshold = float(graph_config.get("similarity_threshold", 0.8))
+        if not -1.0 <= threshold <= 1.0:
+            raise ValueError("method.fedgraph.similarity_threshold must be in [-1, 1]")
     effective_batch = int(get_path(config, "federated.batch_size"))
     micro_batch = int(get_path(config, "federated.micro_batch_size"))
     if micro_batch < 1 or effective_batch < micro_batch or effective_batch % micro_batch:
@@ -193,5 +225,4 @@ def experiment_run_dir(config: Mapping[str, Any]) -> Path:
     method = str(get_path(config, "method.name"))
     seed = int(get_path(config, "experiment.seed"))
     return root / model / attack / method / f"seed_{seed}"
-
 

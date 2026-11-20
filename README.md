@@ -1,131 +1,94 @@
 # FedSApro
 
-Reproduction code for *Heterogeneous Benign Client Suppression in Robust Federated LoRA*.
-The repository implements one paired experiment harness for all paper methods so that model
-initialization, client partitions, minibatch order, attacks, and evaluation sets can be held fixed.
+Reproducible federated LoRA security experiments for heterogeneous benign clients. The current
+study is an accuracy-, domain-gap-, and attack-success-rate experiment on Qwen2.5-0.5B. It is not
+presented as a reproduction of the paper's absolute values, and its final report deliberately
+excludes paper targets, HSSR, and HRCW.
 
-## Paper experiment matrix
+## Current frozen study
 
-- Models: Qwen2.5-1.5B-Instruct, Qwen2.5-3B-Instruct, Qwen2.5-7B-Instruct.
-- Conditions: no attack, 30% label flipping, 10% textual backdoor.
-- Methods: FedAvg, FedProx, SCAFFOLD, IndexGuard, FLAME, and FLTrust.
-- Population: 30 clients for 50 full-participation rounds. Eighteen standard benign clients use
-  Amazon Polarity, six heterogeneous benign clients use 60% Amazon and 40% IMDb, and six
-  designated attacker clients use Amazon data (remaining benign in the no-attack condition).
-- Training: 500 balanced samples per client, one local epoch, AdamW at `1e-4`, batch size 16,
-  sequence length 256, and rank-8 LoRA on every attention query/value projection.
-- Evaluation: disjoint balanced Amazon and IMDb test sets with 2,000 examples each.
+- Model: `Qwen/Qwen2.5-0.5B-Instruct`, rank-8 LoRA on attention query/value projections.
+- Federated parameters: LoRA only. The two-class head is initialized from label-token LM-head
+  rows and then frozen.
+- Population: 30 full-participation clients: 24 Amazon clients, three 50/50 Amazon/IMDb
+  heterogeneous clients, and three IMDb attacker clients.
+- Data: 300 balanced examples per client. Evaluation uses 2,000 balanced examples per domain;
+  the stress profile selects short Amazon and long IMDb reviews using only labels and text length.
+- Training: one communication round, one local epoch, batch size 16, maximum length 48, client
+  learning rate `1e-4`, and server learning rate `3.0`.
+- Attacks: full label flipping with a 5x LoRA-only submitted-update scale, and full suffix-trigger
+  poisoning with a 3x scale. These are explicit aggressive stress-test settings.
+- Methods: FedAvg, IndexGuard, FLAME, FLTrust, Safe-FedLLM, and FedGraph. FedProx and SCAFFOLD are
+  intentionally excluded from this matrix.
+- Formal seed: `2026`. Safe-FedLLM and FedGraph calibration uses the disjoint seed `9101`.
 
-The main diagnostics are heterogeneous relative contribution weight (HRCW) and heterogeneous
-strong suppression rate (HSSR, threshold `tau=0.25`). Every accepted result remains linked to its
-configuration, seed, raw round/client logs, checkpoint, and source commit. A single-seed result is
-reported as a single-seed reproduction and is not represented as the paper's three-seed mean.
+Safe-FedLLM is a documented terminal-delta adaptation of its Shadow-Level defense. Its held-out
+linear probe consumes the normalized first-layer LoRA-B delta plus its log norm and maps the
+malicious probability to the paper's `(1-p)^7` security factor. FedGraph follows the paper's
+cosine graph, degree/betweenness/closeness fingerprint, and HDBSCAN outlier filtering. For this
+small LoRA model, its graph uses the first-layer LoRA-B slice and a threshold of 0.50 selected on
+the disjoint calibration seed.
 
-## Quick start
+## Result status
+
+The frozen single-seed matrix is complete (18/18 cells), and all predeclared conclusion checks
+pass. Clean FedAvg has a 17.50-point domain gap. Under FedAvg, label flipping increases the gap to
+31.45 points and textual backdoor poisoning increases it to 35.30 points. All ten attacked-defense
+cells improve mean accuracy by at least 8.72 points, heterogeneous accuracy by at least 13.60
+points, and reduce the attacked gap by at least 9.75 points. Every textual-backdoor defense reduces
+mean ASR by at least 38.80 points.
+
+See `reports/aggressive_security_study_v1/REPORT.md` for the complete table,
+`conclusion_checks.json` for exact pass/fail decisions, and `evidence/` for each cell's resolved
+configuration, raw metrics, coefficients, provenance, and aggregation diagnostics. Calibration
+choices and rejected attempts are recorded in `CALIBRATION.md`.
+
+## Reproduce
 
 ```bash
 python -m pip install -r requirements.txt
-fedsapro prepare-data --config configs/paper/base.yaml
-fedsapro run --config configs/paper/base.yaml --method fedavg --attack none \
-  --model qwen2.5-1.5b --seed 2026
-fedsapro summarize --run-dir results/qwen2.5-1.5b/none/fedavg/seed_2026
-```
+python -m pip install -e .
 
-For a fast installation/model smoke test, override rounds, client count, samples, and evaluation
-size without modifying the frozen paper config:
+fedsapro prepare-data \
+  --config configs/reproduction/aggressive_security_study.yaml
 
-```bash
-fedsapro run --config configs/paper/base.yaml --method fedavg --attack none \
-  --model qwen2.5-1.5b --seed 2026 --smoke
-```
-
-Pilot/calibration changes are applied as explicit dotted overrides and are captured in the
-resolved configuration, for example `--set federated.rounds=5 --set federated.eval_every=1`.
-The efficient single-GPU profile in `configs/reproduction/efficient.yaml` uses the same clients,
-attacks, methods, effective batch size, and LoRA rank, with a sequence-classification head,
-48-token truncation, two communication rounds, a server learning rate of 2.0, and a 5.0 malicious
-update scale for label flipping (textual backdoor remains 1.0). These explicit knobs compress
-global adaptation and label-flip strength into the short run. The profile is reported separately
-from the frozen 50-round paper configuration.
-
-The final accuracy-centric study is frozen in `configs/reproduction/accuracy_study.yaml`. It uses
-Qwen2.5-0.5B, seed 2026, 30 clients, two communication rounds, and the same six aggregation
-methods. Heterogeneous benign clients draw 80% Amazon and 20% IMDb examples, while designated
-attackers draw IMDb examples. This makes the clean domain gap measurable and lets the paired
-attack runs test whether it widens. FedProx uses `mu=0.01` with a method-specific server learning
-rate of 1.5. SCAFFOLD uses a 0.75 server learning rate and a 0.001 control-variate scale for the
-compressed two-round schedule. The calibration trail is retained in
-`reports/accuracy_study_v1/CALIBRATION.md`.
-
-A restart-safe matrix runner is also included. It defaults to the small Qwen2.5-1.5B model,
-skips completed cells, resumes checkpoints, and preserves an append-only event manifest:
-
-```bash
-python scripts/run_matrix.py --config configs/reproduction/efficient.yaml --seeds 2026
-```
-
-Run and export the final small-model matrix with:
-
-```bash
 python scripts/run_matrix.py \
-  --config configs/reproduction/accuracy_study.yaml \
+  --config configs/reproduction/aggressive_security_study.yaml \
   --models qwen2.5-0.5b \
   --attacks none label_flip textual_backdoor \
-  --methods fedavg fedprox scaffold indexguard flame fltrust \
+  --methods fedavg indexguard flame fltrust safefedllm fedgraph \
   --seeds 2026 --continue-on-error \
-  --manifest results/accuracy_study_v1/events.jsonl
+  --manifest results/aggressive_security_study_v1/events.jsonl
 
-python scripts/export_accuracy_results.py \
-  --root results/accuracy_study_v1 \
-  --output reports/accuracy_study_v1
+python scripts/export_aggressive_results.py \
+  --root results/aggressive_security_study_v1 \
+  --output reports/aggressive_security_study_v1
 ```
 
-This exporter deliberately omits paper-target comparisons, HSSR, and HRCW. It reports only the
-present experiment's accuracy, domain gap, and textual-backdoor ASR. Its machine-readable audit
-requires a complete 18-cell matrix, larger attacked FedAvg gaps than clean FedAvg, and every
-attacked defense to improve paired mean accuracy (plus lower ASR for textual backdoor).
+The matrix runner skips complete cells and resumes incomplete checkpoints. The committed
+`artifacts/safefedllm_probe_qwen05.pt` is the calibration-seed probe required by Safe-FedLLM.
 
-Multiple candidate seeds can be supplied with `--try-seeds-until-accepted`; rejected seeds remain
-on disk and are never rewritten as accepted measurements.
-
-After the matrix finishes, export a GitHub-sized evidence bundle with measured and target values
-kept in separate columns:
+## Verification
 
 ```bash
-python scripts/export_results.py --root results/reproduction_v1 \
-  --output reports/reproduction_v1
+python -m ruff check .
+python -m pytest -q
+
+python - <<'PY'
+import json
+from pathlib import Path
+
+checks = json.loads(
+    Path("reports/aggressive_security_study_v1/conclusion_checks.json").read_text()
+)
+assert checks["matrix_complete"]
+assert checks["all_predeclared_checks_pass"]
+print("aggressive security-study checks passed")
+PY
 ```
 
-## Reproduction status
+The repository retains the earlier paper-target and accuracy-study profiles for historical
+comparison. They are separate experiments and must not be mixed with the current report.
 
-The legacy Qwen2.5-1.5B, seed-2026 matrix contains all 18 attack/method cells. Three cells
-fall inside the deliberately strict paper-target windows. More importantly for the cross-model
-claim, six of nine paired robust-method comparisons have higher HSSR than FedAvg while retaining
-standard-domain accuracy within five percentage points. The short two-round classifier does not
-reproduce the paper's full shifted-domain accuracy decline, so the evidence supports the
-suppression mechanism but not every downstream accuracy effect. See
-`reports/reproduction_v1/REPORT.md` for measured values, immutable paper targets, and the
-predeclared conclusion audit.
-
-The separate Qwen2.5-0.5B accuracy study is reported in
-`reports/accuracy_study_v1/REPORT.md`. It is the current qualitative study requested for this
-repository and should not be conflated with either the paper's absolute numbers or the legacy
-target-window experiment. Its frozen seed-2026 matrix is complete (18/18 cells): both attacks
-increase the FedAvg domain gap, and all ten attacked-defense comparisons improve paired mean
-accuracy; all five textual-backdoor defenses also reduce attack success rate.
-
-## Output contract
-
-Each run writes:
-
-- `resolved_config.yaml`: the exact resolved input configuration.
-- `round_metrics.csv`: source-domain and shifted-domain accuracy by evaluation round.
-- `client_rounds.csv`: role, update norm, raw/effective contribution, and selection per client.
-- `summary.json`: final accuracy, HRCW, HSSR, domain gap, target differences, and provenance.
-- `provenance.json`: source commit, runtime, and command metadata.
-- `checkpoint_latest.pt`: resumable global adapter/control state (ignored by Git by default).
-- `run.log`: full command/runtime diagnostics.
-
-See `docs/METHODOLOGY.md` for the implementation choices that are underspecified by the paper.
-See `docs/NEXT_SERVER.md` for the clean-server continuation and verification procedure.
-
+See `docs/METHODOLOGY.md` for implementation boundaries, `docs/THIRD_PARTY.md` for algorithm
+provenance, and `docs/NEXT_SERVER.md` for a clean-server hand-off.

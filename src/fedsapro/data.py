@@ -68,6 +68,84 @@ def _sample_balanced(
     return selected
 
 
+def _sample_balanced_by_length(
+    dataset: Any,
+    *,
+    domain: str,
+    count: int,
+    longest: bool,
+) -> list[dict[str, Any]]:
+    """Select a label-balanced structural stress subset without using predictions."""
+    if count % 2:
+        raise ValueError("Balanced sample count must be even")
+    candidates: dict[int, list[tuple[int, int]]] = {0: [], 1: []}
+    for index, example in enumerate(dataset):
+        label = int(example["label"])
+        if label not in candidates:
+            continue
+        text = _normalise_text(example, domain)
+        if text:
+            candidates[label].append((len(text.split()), index))
+    selected: list[dict[str, Any]] = []
+    per_label = count // 2
+    for label in (0, 1):
+        ranked = sorted(candidates[label], reverse=longest)[:per_label]
+        if len(ranked) != per_label:
+            raise RuntimeError(f"Could not select {per_label} length-ranked {domain} rows")
+        for _, index in ranked:
+            example = dataset[index]
+            selected.append(
+                {
+                    "text": _normalise_text(example, domain),
+                    "label": label,
+                    "source_domain": domain,
+                    "source_index": index,
+                }
+            )
+    random.Random(0).shuffle(selected)
+    return selected
+
+
+def _sample_balanced_lexical_control(
+    dataset: Any, *, domain: str, count: int
+) -> list[dict[str, Any]]:
+    """Build an easy, label-balanced control set from a fixed sentiment lexicon."""
+    if count % 2:
+        raise ValueError("Balanced sample count must be even")
+    cues = {
+        0: ("terrible", "awful", "worst", "hate", "horrible", "poor", "useless"),
+        1: ("excellent", "great", "amazing", "perfect", "love", "wonderful", "best"),
+    }
+    candidates: dict[int, list[tuple[int, int, int]]] = {0: [], 1: []}
+    for index, example in enumerate(dataset):
+        label = int(example["label"])
+        if label not in candidates:
+            continue
+        text = _normalise_text(example, domain)
+        lowered = text.lower()
+        score = sum(lowered.count(cue) for cue in cues[label])
+        if score:
+            candidates[label].append((-score, len(text.split()), index))
+    selected: list[dict[str, Any]] = []
+    per_label = count // 2
+    for label in (0, 1):
+        ranked = sorted(candidates[label])[:per_label]
+        if len(ranked) != per_label:
+            raise RuntimeError(f"Could not select {per_label} lexical-control {domain} rows")
+        for _, _, index in ranked:
+            example = dataset[index]
+            selected.append(
+                {
+                    "text": _normalise_text(example, domain),
+                    "label": label,
+                    "source_domain": domain,
+                    "source_index": index,
+                }
+            )
+    random.Random(0).shuffle(selected)
+    return selected
+
+
 def _role_map(config: Mapping[str, Any]) -> dict[int, str]:
     standard_count = int(get_path(config, "data.standard_clients"))
     hetero_count = int(get_path(config, "data.heterogeneous_clients"))
@@ -182,20 +260,36 @@ def prepare_data(config: Mapping[str, Any], *, force: bool = False) -> Path:
     write_jsonl(root_rows, root / "server_root.jsonl")
 
     test_count = int(get_path(config, "data.test_samples_per_domain"))
-    amazon_test_rows = _sample_balanced(
-        amazon_test,
-        domain="amazon",
-        count=test_count,
-        rng=random.Random(derive_seed(seed, 30)),
-        used=set(),
-    )
-    imdb_test_rows = _sample_balanced(
-        imdb_test,
-        domain="imdb",
-        count=test_count,
-        rng=random.Random(derive_seed(seed, 31)),
-        used=set(),
-    )
+    test_profile = str(config["data"].get("test_profile", "random"))
+    if test_profile in {"length_extremes", "lexical_length_extremes"}:
+        if test_profile == "lexical_length_extremes":
+            amazon_test_rows = _sample_balanced_lexical_control(
+                amazon_test, domain="amazon", count=test_count
+            )
+        else:
+            amazon_test_rows = _sample_balanced_by_length(
+                amazon_test, domain="amazon", count=test_count, longest=False
+            )
+        imdb_test_rows = _sample_balanced_by_length(
+            imdb_test, domain="imdb", count=test_count, longest=True
+        )
+    elif test_profile == "random":
+        amazon_test_rows = _sample_balanced(
+            amazon_test,
+            domain="amazon",
+            count=test_count,
+            rng=random.Random(derive_seed(seed, 30)),
+            used=set(),
+        )
+        imdb_test_rows = _sample_balanced(
+            imdb_test,
+            domain="imdb",
+            count=test_count,
+            rng=random.Random(derive_seed(seed, 31)),
+            used=set(),
+        )
+    else:
+        raise ValueError(f"Unknown data.test_profile: {test_profile}")
     write_jsonl(amazon_test_rows, root / "test_amazon.jsonl")
     write_jsonl(imdb_test_rows, root / "test_imdb.jsonl")
 

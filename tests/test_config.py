@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from fedsapro.config import ATTACKS, METHODS, PAPER_MODEL_KEYS, load_yaml, resolve_config
+from fedsapro.config import ATTACKS, PAPER_METHODS, PAPER_MODEL_KEYS, load_yaml, resolve_config
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +14,7 @@ def test_targets_cover_full_matrix() -> None:
     for model in PAPER_MODEL_KEYS:
         assert set(targets[model]) == set(ATTACKS)
         for attack in ATTACKS:
-            assert set(targets[model][attack]) == set(METHODS)
+            assert set(targets[model][attack]) == set(PAPER_METHODS)
             for values in targets[model][attack].values():
                 assert set(values) == {"hssr", "standard_accuracy", "heterogeneous_accuracy"}
 
@@ -84,5 +84,4 @@ def test_method_server_learning_rate_must_be_valid() -> None:
             ROOT / "configs/reproduction/efficient.yaml",
             overrides={"method.server_learning_rates.fedprox": 0.0},
         )
-
 

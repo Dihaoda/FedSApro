@@ -75,7 +75,7 @@ def summarize_run(config: Mapping[str, Any], run_dir: str | Path) -> dict[str, A
     targets = load_yaml(target_path)
     aliases = config["reporting"].get("target_model_aliases", {})
     target_model = str(aliases.get(model, model))
-    target = targets[target_model][attack][method]
+    target = targets.get(target_model, {}).get(attack, {}).get(method)
     measured = {
         "hssr": contribution["hssr"] * 100.0,
         "hrcw": contribution["hrcw"],
@@ -93,16 +93,22 @@ def summarize_run(config: Mapping[str, Any], run_dir: str | Path) -> dict[str, A
             else None
         ),
     }
-    differences = {
-        key: measured[key] - float(target[key])
-        for key in ("hssr", "standard_accuracy", "heterogeneous_accuracy")
-    }
+    differences = (
+        {
+            key: measured[key] - float(target[key])
+            for key in ("hssr", "standard_accuracy", "heterogeneous_accuracy")
+        }
+        if target is not None
+        else None
+    )
     accuracy_tolerance = float(get_path(config, "reporting.accuracy_tolerance_points"))
     hssr_tolerance = float(get_path(config, "reporting.hssr_tolerance_points"))
     accepted = (
         abs(differences["standard_accuracy"]) <= accuracy_tolerance
         and abs(differences["heterogeneous_accuracy"]) <= accuracy_tolerance
         and abs(differences["hssr"]) <= hssr_tolerance
+        if differences is not None
+        else None
     )
     summary = {
         "run_class": str(get_path(config, "reporting.run_class")),

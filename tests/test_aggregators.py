@@ -2,6 +2,7 @@ import torch
 
 from fedsapro.aggregators import (
     ClientUpdate,
+    fedgraph,
     fedavg,
     fltrust,
     index_overlap_similarity,
@@ -53,4 +54,23 @@ def test_scaffold_server_lr_scales_the_aggregated_model_delta() -> None:
     result = scaffold(updates, server_lr=0.5)
     assert torch.allclose(result.delta, torch.tensor([1.25, 2.25]))
     assert result.diagnostics["server_lr"] == 0.5
+
+
+def test_fedgraph_keeps_all_updates_when_graph_has_no_clear_split() -> None:
+    updates = [
+        ClientUpdate(index, "standard", torch.tensor([1.0, 0.01 * index]), 1)
+        for index in range(5)
+    ]
+    result = fedgraph(
+        updates,
+        {
+            "similarity_threshold": 1.1,
+            "min_neighbors": 0,
+            "min_cluster_size": 3,
+            "min_samples": 1,
+            "allow_single_cluster": True,
+        },
+    )
+    assert all(result.selected.values())
+    assert result.diagnostics["outlier_count"] == 0
 

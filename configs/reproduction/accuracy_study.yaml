@@ -106,4 +106,3 @@ reporting:
   accuracy_tolerance_points: 3.0
   hssr_tolerance_points: 5.0
   run_class: qwen05_accuracy_conclusion_study
-

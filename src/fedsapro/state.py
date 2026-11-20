@@ -110,3 +110,35 @@ def proximal_penalty(
 def gather_qv(vector: torch.Tensor, layout: ParameterLayout) -> torch.Tensor:
     return torch.cat([vector[offset : offset + count] for offset, count in layout.qv_slices])
 
+
+def gather_first_lora_b(vector: torch.Tensor, layout: ParameterLayout) -> torch.Tensor:
+    """Return the first transformer layer's LoRA-B deltas.
+
+    Safe-FedLLM's released linear probe uses the first layer's LoRA-B weights.
+    Parameter names differ slightly across PEFT/Transformers versions, so the
+    layer is discovered from the ordered trainable-parameter layout instead of
+    being hard coded to a particular Qwen module prefix.
+    """
+    if vector.ndim != 1 or vector.numel() != layout.total_numel:
+        raise ValueError("Parameter vector does not match the supplied layout")
+    candidates: list[tuple[int, int, int]] = []
+    offset = 0
+    for name, count in zip(layout.names, layout.numels):
+        lowered = name.lower()
+        if "lora_b" in lowered:
+            marker = ".layers."
+            if marker in lowered:
+                remainder = lowered.split(marker, 1)[1]
+                try:
+                    layer = int(remainder.split(".", 1)[0])
+                except ValueError:
+                    layer = 10**9
+                candidates.append((layer, offset, count))
+        offset += count
+    if not candidates:
+        raise RuntimeError("No transformer-layer LoRA-B parameters found")
+    first_layer = min(layer for layer, _, _ in candidates)
+    return torch.cat(
+        [vector[start : start + count] for layer, start, count in candidates if layer == first_layer]
+    )
+

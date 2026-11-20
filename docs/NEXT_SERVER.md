@@ -1,7 +1,7 @@
 # Continuing on a new GPU server
 
-The repository is the durable hand-off point. Datasets, Hugging Face model files, run
-checkpoints, and Python environments are intentionally not committed.
+GitHub is the durable hand-off point. Model caches, datasets, and resumable checkpoints are not
+committed; the Safe-FedLLM probe, frozen configuration, final tables, and compact evidence are.
 
 ## 1. Clone and install
 
@@ -12,74 +12,65 @@ python -m pip install -r requirements.txt
 python -m pip install -e .
 ```
 
-Use a CUDA-capable PyTorch build suitable for the new server if the resolver does not install
-one automatically. The final accuracy study uses `Qwen/Qwen2.5-0.5B-Instruct` and normally fits
-on a single modest GPU.
+Use a CUDA-enabled PyTorch build appropriate for the server. Qwen2.5-0.5B fits on a single 32 GB
+GPU with substantial margin under the frozen batch/sequence settings.
 
-## 2. Recreate caches
-
-```bash
-fedsapro prepare-data --config configs/reproduction/accuracy_study.yaml
-```
-
-The first run downloads the model through Hugging Face. Once both the dataset and model are
-cached, offline execution can be enabled with:
+## 2. Recreate deterministic data
 
 ```bash
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
+fedsapro prepare-data \
+  --config configs/reproduction/aggressive_security_study.yaml
+
+fedsapro validate-data \
+  --config configs/reproduction/aggressive_security_study.yaml
 ```
+
+The first command downloads Amazon Polarity and IMDb when they are not cached. The client split and
+length-based test profile are deterministic from seed 2026.
 
 ## 3. Validate the checkout
 
 ```bash
-python -m ruff check src tests scripts
+test -f artifacts/safefedllm_probe_qwen05.pt
+python -m ruff check .
 python -m pytest -q
 ```
 
-## 4. Reproduce the frozen 18-cell matrix
-
-The final study is deliberately single-seed (`2026`) and small-model only. The runner skips
-cells that already contain a summary and appends lifecycle events to its manifest.
+## 4. Run or resume the 18-cell matrix
 
 ```bash
 export FEDSA_GITHUB_COMMIT="$(git rev-parse HEAD)"
 
 python scripts/run_matrix.py \
-  --config configs/reproduction/accuracy_study.yaml \
+  --config configs/reproduction/aggressive_security_study.yaml \
   --models qwen2.5-0.5b \
   --attacks none label_flip textual_backdoor \
-  --methods fedavg fedprox scaffold indexguard flame fltrust \
-  --seeds 2026 \
-  --continue-on-error \
-  --manifest results/accuracy_study_v1/events.jsonl
+  --methods fedavg indexguard flame fltrust safefedllm fedgraph \
+  --seeds 2026 --continue-on-error \
+  --manifest results/aggressive_security_study_v1/events.jsonl
 ```
 
-If the process is interrupted, run the same command again. Completed cells are preserved; cells
-with a checkpoint resume from `checkpoint_latest.pt`.
+Rerun the same command after an interruption. Complete summaries are skipped and incomplete cells
+resume from `checkpoint_latest.pt`.
 
-## 5. Export and audit
+## 5. Export and verify
 
 ```bash
-python scripts/export_accuracy_results.py \
-  --root results/accuracy_study_v1 \
-  --output reports/accuracy_study_v1
+python scripts/export_aggressive_results.py \
+  --root results/aggressive_security_study_v1 \
+  --output reports/aggressive_security_study_v1
 
 python - <<'PY'
 import json
 from pathlib import Path
 
-checks = json.loads(
-    Path("reports/accuracy_study_v1/conclusion_checks.json").read_text()
-)
+path = Path("reports/aggressive_security_study_v1/conclusion_checks.json")
+checks = json.loads(path.read_text())
 assert checks["matrix_complete"]
-assert checks["all_attacks_increase_fedavg_gap"]
-assert checks["all_attacked_defenses_better_than_fedavg"]
-print("accuracy-study conclusion checks passed")
+assert checks["all_predeclared_checks_pass"]
+print("all formal checks passed")
 PY
 ```
 
-The table intentionally excludes HSSR, HRCW, and comparisons with the paper's absolute
-numbers. Raw checkpoints and caches remain local; the compact report and evidence bundle are
-the artifacts intended for GitHub.
-
+Commit the regenerated `reports/aggressive_security_study_v1` directory. Do not commit model
+caches, datasets, checkpoints, or Hugging Face credentials.

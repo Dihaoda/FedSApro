@@ -1,0 +1,25 @@
+{
+  "accepted": null,
+  "attack": "none",
+  "difference_points": null,
+  "final_round": 1,
+  "measured": {
+    "backdoor_asr_heterogeneous": null,
+    "backdoor_asr_standard": null,
+    "domain_gap": 17.400000000000006,
+    "heterogeneous_accuracy": 75.94999999999999,
+    "hrcw": 0.907664367929142,
+    "hssr": 0.0,
+    "standard_accuracy": 93.35
+  },
+  "method": "safefedllm",
+  "model": "qwen2.5-0.5b",
+  "run_class": "qwen05_aggressive_security_study",
+  "seed": 2026,
+  "target": null,
+  "target_reference_model": "qwen2.5-1.5b",
+  "tolerance_points": {
+    "accuracy": 3.0,
+    "hssr": 5.0
+  }
+}
