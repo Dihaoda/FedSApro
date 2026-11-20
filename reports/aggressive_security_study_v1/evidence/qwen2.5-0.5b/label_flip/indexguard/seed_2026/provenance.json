@@ -2,7 +2,7 @@
   "config_digest": "f269ee9408586763ca0e19a5cc9f7376e2cc76bd7b16dd38ee82cf5d13f090b7",
   "cuda": "12.4",
   "git_commit": null,
-  "github_commit": null,
+  "github_commit": "cc5bb78d78204d4483758e7c6e88720770be8f2b",
   "gpu": "Tesla V100S-PCIE-32GB",
   "python": "3.12.3",
   "run_class": "qwen05_aggressive_security_study",
