@@ -106,6 +106,50 @@ def _sample_balanced_by_length(
     return selected
 
 
+def _sample_balanced_from_length_pool(
+    dataset: Any,
+    *,
+    domain: str,
+    count: int,
+    longest: bool,
+    pool_fraction: float,
+    rng: random.Random,
+) -> list[dict[str, Any]]:
+    """Randomly sample inside a label-balanced structural length-quantile pool."""
+    if count % 2:
+        raise ValueError("Balanced sample count must be even")
+    if not 0 < pool_fraction <= 1:
+        raise ValueError("data.test_length_pool_fraction must be in (0, 1]")
+    candidates: dict[int, list[tuple[int, int]]] = {0: [], 1: []}
+    for index, example in enumerate(dataset):
+        label = int(example["label"])
+        if label not in candidates:
+            continue
+        text = _normalise_text(example, domain)
+        if text:
+            candidates[label].append((len(text.split()), index))
+    selected: list[dict[str, Any]] = []
+    per_label = count // 2
+    for label in (0, 1):
+        ranked = sorted(candidates[label], reverse=longest)
+        pool_size = max(per_label, int(math.ceil(len(ranked) * pool_fraction)))
+        pool = [index for _, index in ranked[:pool_size]]
+        if len(pool) < per_label:
+            raise RuntimeError(f"Could not form a {domain} length-quantile pool")
+        for index in rng.sample(pool, per_label):
+            example = dataset[index]
+            selected.append(
+                {
+                    "text": _normalise_text(example, domain),
+                    "label": label,
+                    "source_domain": domain,
+                    "source_index": index,
+                }
+            )
+    rng.shuffle(selected)
+    return selected
+
+
 def _sample_balanced_lexical_control(
     dataset: Any, *, domain: str, count: int
 ) -> list[dict[str, Any]]:
@@ -261,7 +305,25 @@ def prepare_data(config: Mapping[str, Any], *, force: bool = False) -> Path:
 
     test_count = int(get_path(config, "data.test_samples_per_domain"))
     test_profile = str(config["data"].get("test_profile", "random"))
-    if test_profile in {"length_extremes", "lexical_length_extremes"}:
+    if test_profile == "random_length_pools":
+        pool_fraction = float(config["data"].get("test_length_pool_fraction", 0.3))
+        amazon_test_rows = _sample_balanced_from_length_pool(
+            amazon_test,
+            domain="amazon",
+            count=test_count,
+            longest=False,
+            pool_fraction=pool_fraction,
+            rng=random.Random(derive_seed(seed, 32)),
+        )
+        imdb_test_rows = _sample_balanced_from_length_pool(
+            imdb_test,
+            domain="imdb",
+            count=test_count,
+            longest=True,
+            pool_fraction=pool_fraction,
+            rng=random.Random(derive_seed(seed, 33)),
+        )
+    elif test_profile in {"length_extremes", "lexical_length_extremes"}:
         if test_profile == "lexical_length_extremes":
             amazon_test_rows = _sample_balanced_lexical_control(
                 amazon_test, domain="amazon", count=test_count

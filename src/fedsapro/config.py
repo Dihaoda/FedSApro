@@ -145,11 +145,13 @@ def validate_config(config: Mapping[str, Any]) -> None:
         raise ValueError(f"Unknown method {method!r}; choose from {METHODS}")
     if str(config["data"].get("test_profile", "random")) not in {
         "random",
+        "random_length_pools",
         "length_extremes",
         "lexical_length_extremes",
     }:
         raise ValueError(
-            "data.test_profile must be random, length_extremes, or lexical_length_extremes"
+            "data.test_profile must be random, random_length_pools, length_extremes, "
+            "or lexical_length_extremes"
         )
 
     roles = sum(
