@@ -178,6 +178,20 @@ def indexguard(
         minority_ratio=float(config["minority_ratio"]),
         fallback=str(config.get("fallback", "none")),
     )
+    norm_ratio_cap = float(config.get("norm_ratio_cap", 0.0))
+    if norm_ratio_cap > 0:
+        norms = [float(torch.linalg.vector_norm(update.delta.float()).item()) for update in updates]
+        median_norm = max(float(np.median(norms)), 1e-12)
+        norm_retained = [norm <= median_norm * norm_ratio_cap for norm in norms]
+        retained = [
+            cluster_keep and norm_keep
+            for cluster_keep, norm_keep in zip(retained, norm_retained)
+        ]
+        diagnostics["norm_ratio_cap"] = norm_ratio_cap
+        diagnostics["median_update_norm"] = median_norm
+        diagnostics["norm_rejected_clients"] = [
+            update.client_id for update, keep in zip(updates, norm_retained) if not keep
+        ]
     raw = _sample_coefficients(updates)
     effective = {
         update.client_id: raw[update.client_id] if keep else 0.0

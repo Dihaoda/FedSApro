@@ -1,0 +1,10 @@
+{
+  "config_digest": "e27f3ba9c8f5bc02b55bf3c50600532edb4ccd4d0705557ac8ea127b4be77b80",
+  "cuda": "12.4",
+  "git_commit": null,
+  "github_commit": null,
+  "gpu": "Tesla V100S-PCIE-32GB",
+  "python": "3.12.3",
+  "run_class": "qwen05_heterogeneous_suppression_study",
+  "torch": "2.5.1+cu124"
+}

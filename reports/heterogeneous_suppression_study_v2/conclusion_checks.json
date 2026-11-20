@@ -1,0 +1,125 @@
+{
+  "matrix_complete": true,
+  "observed_cell_count": 18,
+  "expected_cell_count": 18,
+  "missing_cells": [],
+  "attacked_fedavg_gap_checks": [
+    {
+      "attack": "label_flip",
+      "gap_increase": 0.9009009100000114,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "gap_increase": 1.8018018100000006,
+      "passes": true
+    }
+  ],
+  "fedavg_heterogeneous_advantage_checks": [
+    {
+      "attack": "label_flip",
+      "method": "indexguard",
+      "fedavg_heterogeneous_advantage": 1.4014013999999833,
+      "passes": true
+    },
+    {
+      "attack": "label_flip",
+      "method": "flame",
+      "fedavg_heterogeneous_advantage": 4.054054050000005,
+      "passes": true
+    },
+    {
+      "attack": "label_flip",
+      "method": "fltrust",
+      "fedavg_heterogeneous_advantage": 1.601601599999995,
+      "passes": true
+    },
+    {
+      "attack": "label_flip",
+      "method": "safefedllm",
+      "fedavg_heterogeneous_advantage": 13.863863859999988,
+      "passes": true
+    },
+    {
+      "attack": "label_flip",
+      "method": "fedgraph",
+      "fedavg_heterogeneous_advantage": 3.25325325,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "indexguard",
+      "fedavg_heterogeneous_advantage": 0.7507507499999946,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "flame",
+      "fedavg_heterogeneous_advantage": 3.403403400000016,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "fltrust",
+      "fedavg_heterogeneous_advantage": 0.9509509500000064,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "safefedllm",
+      "fedavg_heterogeneous_advantage": 0.5005005000000011,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "method": "fedgraph",
+      "fedavg_heterogeneous_advantage": 2.6026026000000115,
+      "passes": true
+    }
+  ],
+  "textual_backdoor_asr_checks": [
+    {
+      "method": "indexguard",
+      "mean_asr_reduction": 13.0130130125,
+      "passes": true
+    },
+    {
+      "method": "flame",
+      "mean_asr_reduction": 24.3743743735,
+      "passes": true
+    },
+    {
+      "method": "fltrust",
+      "mean_asr_reduction": 9.259259256500002,
+      "passes": true
+    },
+    {
+      "method": "safefedllm",
+      "mean_asr_reduction": 19.519519518000003,
+      "passes": true
+    },
+    {
+      "method": "fedgraph",
+      "mean_asr_reduction": 10.510510507500001,
+      "passes": true
+    }
+  ],
+  "method_spread_checks": [
+    {
+      "attack": "label_flip",
+      "heterogeneous_accuracy_range": 12.462462460000005,
+      "passes": true
+    },
+    {
+      "attack": "textual_backdoor",
+      "heterogeneous_accuracy_range": 2.902902900000015,
+      "passes": true
+    }
+  ],
+  "distinct_accuracy_pairs": 14,
+  "natural_resolution_check": {
+    "minimum": 12,
+    "passes": true
+  },
+  "all_predeclared_checks_pass": true
+}

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import csv
+import copy
 import json
 import logging
+import math
 import os
 import platform
 import shutil
@@ -246,53 +248,166 @@ def run_experiment(
         updates: list[ClientUpdate] = []
         local_metadata: dict[int, dict[str, Any]] = {}
         control_deltas: list[torch.Tensor] = []
-        for client_id, role in roles.items():
-            result = train_local(
-                model,
-                tokenizer,
-                client_rows[client_id],
-                config=config,
-                device=device,
-                global_vector=global_vector,
-                seed=derive_seed(seed, round_number, client_id),
-                method=method,
-                client_control=(scaffold_clients or {}).get(client_id),
-                server_control=scaffold_server,
-            )
-            if method == "scaffold":
-                assert scaffold_clients is not None and result.new_control is not None
-                scaffold_clients[client_id] = result.new_control
-                assert result.control_delta is not None
-                control_deltas.append(result.control_delta)
-            submitted_delta = result.delta
-            if role == ATTACKER and attack_name != "none":
-                scale_scope = str(config["attack"].get("scale_scope", "all"))
-                if scale_scope == "all":
-                    submitted_delta = submitted_delta * attack_update_scale
-                elif scale_scope == "lora_only":
-                    submitted_delta = submitted_delta.clone()
-                    for offset, count in layout.qv_slices:
-                        submitted_delta[offset : offset + count].mul_(attack_update_scale)
-                else:
-                    raise ValueError(f"Unknown attack.scale_scope: {scale_scope}")
-            updates.append(
-                ClientUpdate(client_id, role, submitted_delta, len(client_rows[client_id]))
-            )
-            local_metadata[client_id] = {
-                "steps": result.steps,
-                "mean_loss": result.mean_loss,
-                "peak_memory_mb": result.peak_memory_mb,
-                "update_norm": float(torch.linalg.vector_norm(submitted_delta).item()),
+        cache_root = str(config.get("calibration", {}).get("shared_update_cache_dir", "")).strip()
+        cache_path: Path | None = None
+        cache_attack = copy.deepcopy(config["attack"])
+        cache_reference_scales = config.get("calibration", {}).get(
+            "shared_update_cache_reference_scales", {}
+        )
+        cache_reference_scale = float(
+            cache_reference_scales.get(attack_name, attack_update_scale)
+        )
+        cache_attack.setdefault("update_scales", {}).update(
+            {name: float(value) for name, value in cache_reference_scales.items()}
+        )
+        cache_signature = config_digest(
+            {
+                "model": config["model"],
+                "data": config["data"],
+                "federated": config["federated"],
+                "attack": cache_attack,
+                "seed": seed,
+                "round": round_number,
             }
+        )
+        if cache_root:
+            if rounds != 1 or method in {"fedprox", "scaffold"}:
+                raise ValueError(
+                    "calibration.shared_update_cache_dir only supports one-round methods "
+                    "with method-independent local training"
+                )
+            cache_path = (
+                Path(cache_root)
+                / str(get_path(config, "model.key"))
+                / attack_name
+                / f"seed_{seed}_round_{round_number}.pt"
+            )
+        if cache_path is not None and cache_path.exists():
+            cached = torch.load(cache_path, map_location="cpu", weights_only=False)
+            if cached.get("schema_version") != 1 or cached.get("signature") != cache_signature:
+                raise RuntimeError(f"Shared client-update cache mismatch: {cache_path}")
+            updates = [
+                ClientUpdate(
+                    int(record["client_id"]),
+                    str(record["role"]),
+                    torch.as_tensor(record["delta"], dtype=torch.float32),
+                    int(record["sample_count"]),
+                )
+                for record in cached["updates"]
+            ]
+            local_metadata = {int(key): value for key, value in cached["local_metadata"].items()}
+            LOGGER.info("Loaded %d shared client updates from %s", len(updates), cache_path)
+        else:
+            if not math.isclose(attack_update_scale, cache_reference_scale):
+                raise RuntimeError(
+                    "The shared cache is missing and the requested attack scale differs "
+                    "from calibration.shared_update_cache_reference_scales"
+                )
+            for client_id, role in roles.items():
+                result = train_local(
+                    model,
+                    tokenizer,
+                    client_rows[client_id],
+                    config=config,
+                    device=device,
+                    global_vector=global_vector,
+                    seed=derive_seed(seed, round_number, client_id),
+                    method=method,
+                    client_control=(scaffold_clients or {}).get(client_id),
+                    server_control=scaffold_server,
+                )
+                if method == "scaffold":
+                    assert scaffold_clients is not None and result.new_control is not None
+                    scaffold_clients[client_id] = result.new_control
+                    assert result.control_delta is not None
+                    control_deltas.append(result.control_delta)
+                submitted_delta = result.delta
+                if role == ATTACKER and attack_name != "none":
+                    scale_scope = str(config["attack"].get("scale_scope", "all"))
+                    if scale_scope == "all":
+                        submitted_delta = submitted_delta * attack_update_scale
+                    elif scale_scope == "lora_only":
+                        submitted_delta = submitted_delta.clone()
+                        for offset, count in layout.qv_slices:
+                            submitted_delta[offset : offset + count].mul_(attack_update_scale)
+                    else:
+                        raise ValueError(f"Unknown attack.scale_scope: {scale_scope}")
+                updates.append(
+                    ClientUpdate(client_id, role, submitted_delta, len(client_rows[client_id]))
+                )
+                local_metadata[client_id] = {
+                    "steps": result.steps,
+                    "mean_loss": result.mean_loss,
+                    "peak_memory_mb": result.peak_memory_mb,
+                    "update_norm": float(torch.linalg.vector_norm(submitted_delta).item()),
+                }
+                LOGGER.info(
+                    "round=%d client=%d role=%s steps=%d loss=%.6f norm=%.6f peak_mb=%.1f",
+                    round_number,
+                    client_id,
+                    role,
+                    result.steps,
+                    result.mean_loss,
+                    local_metadata[client_id]["update_norm"],
+                    local_metadata[client_id]["peak_memory_mb"],
+                )
+            if cache_path is not None:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                temporary = cache_path.with_suffix(".tmp")
+                torch.save(
+                    {
+                        "schema_version": 1,
+                        "signature": cache_signature,
+                        "updates": [
+                            {
+                                "client_id": update.client_id,
+                                "role": update.role,
+                                "delta": update.delta.float().cpu(),
+                                "sample_count": update.sample_count,
+                            }
+                            for update in updates
+                        ],
+                        "local_metadata": local_metadata,
+                    },
+                    temporary,
+                )
+                temporary.replace(cache_path)
+                LOGGER.info("Saved shared client updates to %s", cache_path)
+
+        cache_scale_ratio = attack_update_scale / max(cache_reference_scale, 1e-12)
+        if cache_path is not None and cache_path.exists() and not math.isclose(
+            cache_scale_ratio, 1.0
+        ):
+            rescaled_updates: list[ClientUpdate] = []
+            for update in updates:
+                submitted_delta = update.delta
+                if update.role == ATTACKER and attack_name != "none":
+                    submitted_delta = submitted_delta.clone()
+                    scale_scope = str(config["attack"].get("scale_scope", "all"))
+                    if scale_scope == "all":
+                        submitted_delta.mul_(cache_scale_ratio)
+                    elif scale_scope == "lora_only":
+                        for offset, count in layout.qv_slices:
+                            submitted_delta[offset : offset + count].mul_(cache_scale_ratio)
+                    else:
+                        raise ValueError(f"Unknown attack.scale_scope: {scale_scope}")
+                rescaled_updates.append(
+                    ClientUpdate(
+                        update.client_id,
+                        update.role,
+                        submitted_delta,
+                        update.sample_count,
+                    )
+                )
+                local_metadata[update.client_id]["update_norm"] = float(
+                    torch.linalg.vector_norm(submitted_delta).item()
+                )
+            updates = rescaled_updates
             LOGGER.info(
-                "round=%d client=%d role=%s steps=%d loss=%.6f norm=%.6f peak_mb=%.1f",
-                round_number,
-                client_id,
-                role,
-                result.steps,
-                result.mean_loss,
-                local_metadata[client_id]["update_norm"],
-                local_metadata[client_id]["peak_memory_mb"],
+                "Rescaled cached %s attacker updates from %.6g to %.6g",
+                attack_name,
+                cache_reference_scale,
+                attack_update_scale,
             )
 
         if method == "scaffold":
