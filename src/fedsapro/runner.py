@@ -66,6 +66,39 @@ ROUND_FIELDS = [
 ]
 
 
+def _normalize_attacker_norms(
+    updates: list[ClientUpdate], target_ratio: float
+) -> tuple[list[ClientUpdate], float]:
+    """Match every attacker norm to a fixed multiple of the benign median.
+
+    Raw attack multipliers are not comparable across model sizes because LoRA
+    update norms scale with the backbone.  Normalizing after loading the shared
+    cache keeps the attack-to-benign strength comparable without changing the
+    direction of any client update.
+    """
+    benign_norms = [
+        float(torch.linalg.vector_norm(update.delta).item())
+        for update in updates
+        if update.role != ATTACKER
+    ]
+    if not benign_norms:
+        raise ValueError("Attack norm matching requires at least one benign client")
+    benign_median = float(torch.tensor(benign_norms, dtype=torch.float64).median().item())
+    target_norm = benign_median * target_ratio
+    normalized: list[ClientUpdate] = []
+    for update in updates:
+        delta = update.delta
+        if update.role == ATTACKER:
+            current_norm = float(torch.linalg.vector_norm(delta).item())
+            if current_norm <= 0.0:
+                raise ValueError("Cannot norm-match a zero attacker update")
+            delta = delta.clone().mul_(target_norm / current_norm)
+        normalized.append(
+            ClientUpdate(update.client_id, update.role, delta, update.sample_count)
+        )
+    return normalized, benign_median
+
+
 def _git_commit() -> str | None:
     try:
         return subprocess.check_output(
@@ -251,6 +284,9 @@ def run_experiment(
         cache_root = str(config.get("calibration", {}).get("shared_update_cache_dir", "")).strip()
         cache_path: Path | None = None
         cache_attack = copy.deepcopy(config["attack"])
+        # Norm matching is applied after cache loading and therefore must not
+        # invalidate raw client-update caches.
+        cache_attack.pop("norm_ratio_targets", None)
         cache_reference_scales = config.get("calibration", {}).get(
             "shared_update_cache_reference_scales", {}
         )
@@ -408,6 +444,21 @@ def run_experiment(
                 attack_name,
                 cache_reference_scale,
                 attack_update_scale,
+            )
+
+        norm_ratio_targets = config["attack"].get("norm_ratio_targets", {})
+        if attack_name != "none" and attack_name in norm_ratio_targets:
+            target_ratio = float(norm_ratio_targets[attack_name])
+            updates, benign_median = _normalize_attacker_norms(updates, target_ratio)
+            for update in updates:
+                local_metadata[update.client_id]["update_norm"] = float(
+                    torch.linalg.vector_norm(update.delta).item()
+                )
+            LOGGER.info(
+                "Norm-matched %s attacker updates to %.6g x benign median %.6g",
+                attack_name,
+                target_ratio,
+                benign_median,
             )
 
         if method == "scaffold":

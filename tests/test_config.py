@@ -62,6 +62,23 @@ def test_attack_specific_update_scale_must_be_positive() -> None:
         )
 
 
+def test_attack_norm_ratio_target_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="attack.norm_ratio_targets.label_flip"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            overrides={"attack.norm_ratio_targets": {"label_flip": 0.0}},
+        )
+
+
+def test_safefedllm_norm_guard_fraction_must_be_valid() -> None:
+    with pytest.raises(ValueError, match="norm_guard_fraction"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            method="safefedllm",
+            overrides={"method.safefedllm.norm_guard_fraction": 1.0},
+        )
+
+
 def test_attacker_domain_fraction_must_be_valid() -> None:
     with pytest.raises(ValueError, match="attacker Amazon fraction"):
         resolve_config(

@@ -358,9 +358,11 @@ def safefedllm(
     security: dict[int, float] = {}
     effective: dict[int, float] = {}
     selected: dict[int, bool] = {}
+    magnitudes: dict[int, float] = {}
     for update in updates:
         feature = gather_first_lora_b(update.delta.float().cpu(), layout)
         magnitude = torch.linalg.vector_norm(feature)
+        magnitudes[update.client_id] = float(magnitude.item())
         feature = feature / magnitude.clamp_min(1e-12)
         feature_policy = str(probe.get("feature_policy", "first_transformer_layer_lora_B_l2"))
         if feature_policy == "first_transformer_layer_lora_B_l2_plus_log_norm":
@@ -378,6 +380,17 @@ def safefedllm(
         security[update.client_id] = factor
         effective[update.client_id] = raw[update.client_id] * factor
         selected[update.client_id] = probability < threshold
+    norm_guard_fraction = float(config.get("norm_guard_fraction", 0.0))
+    norm_guard_count = min(
+        len(updates), int(math.ceil(len(updates) * norm_guard_fraction))
+    )
+    norm_guard_clients = sorted(
+        magnitudes, key=lambda client_id: (-magnitudes[client_id], client_id)
+    )[:norm_guard_count]
+    for client_id in norm_guard_clients:
+        security[client_id] = minimum
+        effective[client_id] = raw[client_id] * minimum
+        selected[client_id] = False
     return AggregationResult(
         delta=_weighted_mean(updates, effective),
         raw_coefficients=raw,
@@ -389,6 +402,8 @@ def safefedllm(
             "probe_calibration": probe.get("calibration"),
             "harmful_probability": probabilities,
             "security_factor": security,
+            "norm_guard_fraction": norm_guard_fraction,
+            "norm_guard_clients": norm_guard_clients,
             "eta": eta,
         },
     )

@@ -197,6 +197,12 @@ def validate_config(config: Mapping[str, Any]) -> None:
     for attack_name in ATTACKS:
         if float(update_scales[attack_name]) <= 0:
             raise ValueError(f"attack.update_scales.{attack_name} must be positive")
+    for attack_name, value in config["attack"].get("norm_ratio_targets", {}).items():
+        if attack_name not in ATTACKS or attack_name == "none" or float(value) <= 0:
+            raise ValueError(
+                f"attack.norm_ratio_targets.{attack_name} must name an attacked "
+                "condition and be positive"
+            )
     if method == "safefedllm":
         safe_config = get_path(config, "method.safefedllm")
         if float(safe_config.get("eta", 7.0)) <= 0:
@@ -204,6 +210,9 @@ def validate_config(config: Mapping[str, Any]) -> None:
         min_weight = float(safe_config.get("min_weight", 0.0))
         if not 0.0 <= min_weight < 1.0:
             raise ValueError("method.safefedllm.min_weight must be in [0, 1)")
+        norm_guard_fraction = float(safe_config.get("norm_guard_fraction", 0.0))
+        if not 0.0 <= norm_guard_fraction < 1.0:
+            raise ValueError("method.safefedllm.norm_guard_fraction must be in [0, 1)")
     if method == "fedgraph":
         graph_config = get_path(config, "method.fedgraph")
         threshold = float(graph_config.get("similarity_threshold", 0.8))

@@ -1,0 +1,10 @@
+{
+  "config_digest": "20309edb397c14cad9ce55ee33b2342bd4441064815224b40f1b619ba1d32605",
+  "cuda": "12.4",
+  "git_commit": null,
+  "github_commit": null,
+  "gpu": "Tesla V100S-PCIE-32GB",
+  "python": "3.12.3",
+  "run_class": "qwen15_norm_matched_attack_study",
+  "torch": "2.5.1+cu124"
+}
