@@ -1,0 +1,23 @@
+{
+  "artifact": "artifacts/safefedllm_probe_qwen3_v1.pt",
+  "model": "qwen2.5-3b",
+  "feature_dim": 18433,
+  "calibration_seeds": [
+    9101
+  ],
+  "metrics_in_sample": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0,
+    "examples": 30,
+    "harmful_examples": 3
+  },
+  "source_files": [
+    {
+      "path": "results/qwen3_probe_calibration/qwen2.5-3b/label_flip/fedavg/seed_9101/safefedllm_features_round_001.pt",
+      "sha256": "d1a1e8a19b84df0e5de87c5914c397bf7b9f16f00171271aab2730d90099591d"
+    }
+  ]
+}

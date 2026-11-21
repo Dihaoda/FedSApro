@@ -3,6 +3,25 @@
 GitHub is the durable hand-off point. Model caches, datasets, and resumable checkpoints are not
 committed; the Safe-FedLLM probe, frozen configuration, final tables, and compact evidence are.
 
+## Current Qwen2.5-3B hand-off
+
+The current frozen configuration is
+`configs/reproduction/natural_domain_attack_study_qwen3_v1.yaml`; its Safe-FedLLM probe is
+`artifacts/safefedllm_probe_qwen3_v1.pt`. It was verified on one 32 GB V100S. Use the commands
+below with the current config/model/report substitutions:
+
+- config: `natural_domain_attack_study_qwen3_v1.yaml`
+- model: `qwen2.5-3b`
+- result root: `results/natural_domain_attack_study_qwen3_v1`
+- exporter: `python scripts/export_qwen3_results.py`
+- report: `reports/natural_domain_attack_study_qwen3_v1`
+
+Run `none` first on a clean server. Its shared cache provides the 27 identical benign updates for
+both attacks; only clients 27-29 are retrained for each attacked cache. Do not commit model caches,
+raw datasets, shared-update caches, checkpoints, or credentials.
+
+The remainder of this document records the historical Qwen2.5-0.5B workflow.
+
 ## 1. Clone and install
 
 ```bash

@@ -181,10 +181,18 @@ def validate_config(config: Mapping[str, Any]) -> None:
     if float(get_path(config, "federated.server_learning_rate")) <= 0:
         raise ValueError("server_learning_rate must be positive")
     for method_name, value in config["method"].get("server_learning_rates", {}).items():
-        if method_name not in METHODS or float(value) <= 0:
+        valid_method = method_name in METHODS
+        if isinstance(value, Mapping):
+            valid_keys = set(ATTACKS) | {"default"}
+            valid_value = bool(value) and set(value) <= valid_keys and all(
+                float(item) > 0 for item in value.values()
+            )
+        else:
+            valid_value = float(value) > 0
+        if not valid_method or not valid_value:
             raise ValueError(
                 f"method.server_learning_rates.{method_name} must name a known method "
-                "and be positive"
+                "and contain positive scalar or per-attack values"
             )
     if float(get_path(config, "attack.update_scale")) <= 0:
         raise ValueError("attack.update_scale must be positive")

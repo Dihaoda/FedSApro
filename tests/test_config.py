@@ -102,3 +102,23 @@ def test_method_server_learning_rate_must_be_valid() -> None:
             overrides={"method.server_learning_rates.fedprox": 0.0},
         )
 
+
+def test_per_attack_server_learning_rates_must_be_valid() -> None:
+    config = resolve_config(
+        ROOT / "configs/reproduction/efficient.yaml",
+        overrides={
+            "method.server_learning_rates.flame": {
+                "none": 1.0,
+                "label_flip": 1.5,
+                "textual_backdoor": 1.25,
+            }
+        },
+    )
+    assert config["method"]["server_learning_rates"]["flame"]["label_flip"] == 1.5
+
+    with pytest.raises(ValueError, match="server_learning_rates.flame"):
+        resolve_config(
+            ROOT / "configs/reproduction/efficient.yaml",
+            overrides={"method.server_learning_rates.flame": {"unknown": 1.0}},
+        )
+

@@ -1,11 +1,46 @@
 # FedSApro
 
 Reproducible federated LoRA security experiments for heterogeneous benign clients. The current
-study is an accuracy-, domain-gap-, and attack-success-rate experiment on Qwen2.5-0.5B. It is not
-presented as a reproduction of the paper's absolute values, and its final report deliberately
-excludes paper targets, HSSR, and HRCW.
+frozen study evaluates Qwen2.5-3B on standard and heterogeneous review domains under no attack,
+label flipping, and textual backdoor poisoning. It tests the paper's qualitative conclusion rather
+than attempting to reproduce its absolute values; HSSR, HRCW, paper targets, and synthetic result
+jitter are not acceptance criteria.
 
-## Current frozen study
+## Current Qwen2.5-3B study
+
+- Model: `Qwen/Qwen2.5-3B-Instruct`, rank-8 LoRA on attention query/value projections.
+- Population: 30 full-participation clients: 18 standard, nine heterogeneous, and three attackers.
+- Data: 300 balanced examples per client and 1,786 measured test examples per domain.
+- Methods: FedAvg, IndexGuard, FLAME, FLTrust, Safe-FedLLM, and FedGraph; seed `2026`.
+- Attacks: full label flipping and suffix-trigger poisoning with frozen norm ratios 8.5 and 4.0.
+
+The measured matrix is complete (18/18 cells), and all required qualitative checks pass. FedAvg's
+domain gap grows from 12.49 points without attack to 20.21 under label flipping and 19.37 under
+textual backdoor poisoning. Under both attacks every defense exceeds FedAvg standard-domain
+accuracy by at least one point, and every defense reduces mean textual-backdoor ASR. Relative to
+the frozen Qwen2.5-1.5B study, the 3B model gains 1.00 point in mean accuracy over all 18 cells
+(13/18 cells improve). The textual-backdoor condition mean is 0.34 point lower and is retained
+transparently in the report.
+
+See `reports/natural_domain_attack_study_qwen3_v1/REPORT.md` for the complete table and
+`configs/reproduction/natural_domain_attack_study_qwen3_v1.yaml` for the frozen configuration.
+
+```bash
+fedsapro prepare-data --config configs/reproduction/natural_domain_attack_study_qwen3_v1.yaml
+python scripts/run_matrix.py \
+  --config configs/reproduction/natural_domain_attack_study_qwen3_v1.yaml \
+  --models qwen2.5-3b \
+  --attacks none label_flip textual_backdoor \
+  --methods fedavg indexguard flame fltrust safefedllm fedgraph \
+  --seeds 2026 --continue-on-error \
+  --manifest results/natural_domain_attack_study_qwen3_v1/events.jsonl
+python scripts/export_qwen3_results.py
+```
+
+The committed `artifacts/safefedllm_probe_qwen3_v1.pt` is required by Safe-FedLLM. Attack runs
+reuse the identical benign updates from the no-attack cache and retrain only the three attackers.
+
+## Historical Qwen2.5-0.5B study
 
 - Model: `Qwen/Qwen2.5-0.5B-Instruct`, rank-8 LoRA on attention query/value projections.
 - Federated parameters: LoRA only. The two-class head is initialized from label-token LM-head

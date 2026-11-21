@@ -267,9 +267,15 @@ def run_experiment(
         get_path(config, "federated.server_learning_rate")
     )
     method_server_learning_rates = config["method"].get("server_learning_rates", {})
-    server_learning_rate = float(
-        method_server_learning_rates.get(method, default_server_learning_rate)
+    method_server_learning_rate = method_server_learning_rates.get(
+        method, default_server_learning_rate
     )
+    if isinstance(method_server_learning_rate, Mapping):
+        method_server_learning_rate = method_server_learning_rate.get(
+            attack_name,
+            method_server_learning_rate.get("default", default_server_learning_rate),
+        )
+    server_learning_rate = float(method_server_learning_rate)
     attack_scales = get_path(config, "attack.update_scales")
     attack_update_scale = float(
         attack_scales.get(attack_name, get_path(config, "attack.update_scale"))
@@ -339,7 +345,63 @@ def run_experiment(
                     "The shared cache is missing and the requested attack scale differs "
                     "from calibration.shared_update_cache_reference_scales"
                 )
+            reuse_attack = str(
+                config.get("calibration", {}).get(
+                    "reuse_benign_cache_from_attack", ""
+                )
+            ).strip()
+            if cache_path is not None and reuse_attack and reuse_attack != attack_name:
+                reuse_cache_attack = copy.deepcopy(cache_attack)
+                reuse_cache_attack["name"] = reuse_attack
+                reuse_signature = config_digest(
+                    {
+                        "model": config["model"],
+                        "data": config["data"],
+                        "federated": config["federated"],
+                        "attack": reuse_cache_attack,
+                        "seed": seed,
+                        "round": round_number,
+                    }
+                )
+                reuse_path = (
+                    Path(cache_root)
+                    / str(get_path(config, "model.key"))
+                    / reuse_attack
+                    / f"seed_{seed}_round_{round_number}.pt"
+                )
+                if not reuse_path.exists():
+                    raise RuntimeError(
+                        "Benign-update reuse cache is missing: " f"{reuse_path}"
+                    )
+                reused = torch.load(reuse_path, map_location="cpu", weights_only=False)
+                if (
+                    reused.get("schema_version") != 1
+                    or reused.get("signature") != reuse_signature
+                ):
+                    raise RuntimeError(
+                        f"Benign-update reuse cache mismatch: {reuse_path}"
+                    )
+                for record in reused["updates"]:
+                    if str(record["role"]) == ATTACKER:
+                        continue
+                    client_id = int(record["client_id"])
+                    updates.append(
+                        ClientUpdate(
+                            client_id,
+                            str(record["role"]),
+                            torch.as_tensor(record["delta"], dtype=torch.float32),
+                            int(record["sample_count"]),
+                        )
+                    )
+                    local_metadata[client_id] = reused["local_metadata"][client_id]
+                LOGGER.info(
+                    "Reused %d benign client updates from %s",
+                    len(updates),
+                    reuse_path,
+                )
             for client_id, role in roles.items():
+                if client_id in local_metadata:
+                    continue
                 result = train_local(
                     model,
                     tokenizer,
