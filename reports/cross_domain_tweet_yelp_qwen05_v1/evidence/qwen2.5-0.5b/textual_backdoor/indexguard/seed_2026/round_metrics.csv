@@ -1,0 +1,2 @@
+round,standard_accuracy,heterogeneous_accuracy,domain_gap,backdoor_asr_standard,backdoor_asr_heterogeneous,round_seconds
+1,0.9031354983,0.7889137738,0.1142217245,0.09854423292,0.3057110862,28.075035

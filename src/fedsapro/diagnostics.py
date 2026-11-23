@@ -51,6 +51,11 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def domain_gap_points(standard_accuracy: float, heterogeneous_accuracy: float) -> float:
+    """Return the absolute cross-domain accuracy disparity in percentage points."""
+    return abs(standard_accuracy - heterogeneous_accuracy) * 100.0
+
+
 def summarize_run(config: Mapping[str, Any], run_dir: str | Path) -> dict[str, Any]:
     directory = Path(run_dir)
     client_rows = _read_csv(directory / "client_rounds.csv")
@@ -81,7 +86,9 @@ def summarize_run(config: Mapping[str, Any], run_dir: str | Path) -> dict[str, A
         "hrcw": contribution["hrcw"],
         "standard_accuracy": standard_accuracy * 100.0,
         "heterogeneous_accuracy": heterogeneous_accuracy * 100.0,
-        "domain_gap": (standard_accuracy - heterogeneous_accuracy) * 100.0,
+        # An attack can reverse which domain is better without eliminating the
+        # cross-domain disparity.
+        "domain_gap": domain_gap_points(standard_accuracy, heterogeneous_accuracy),
         "backdoor_asr_standard": (
             float(final["backdoor_asr_standard"]) * 100.0
             if final.get("backdoor_asr_standard")

@@ -1,0 +1,33 @@
+{
+  "accepted": false,
+  "attack": "label_flip",
+  "difference_points": {
+    "heterogeneous_accuracy": 0.09227323999999726,
+    "hssr": -45.0,
+    "standard_accuracy": -5.469428890000003
+  },
+  "final_round": 1,
+  "measured": {
+    "backdoor_asr_heterogeneous": null,
+    "backdoor_asr_standard": null,
+    "domain_gap": 10.638297869999992,
+    "heterogeneous_accuracy": 73.29227324,
+    "hrcw": 0.5039346128061084,
+    "hssr": 0.0,
+    "standard_accuracy": 83.93057111
+  },
+  "method": "fltrust",
+  "model": "qwen2.5-0.5b",
+  "run_class": "cross_domain_tweet_yelp_qwen05_v1",
+  "seed": 2026,
+  "target": {
+    "heterogeneous_accuracy": 73.2,
+    "hssr": 45.0,
+    "standard_accuracy": 89.4
+  },
+  "target_reference_model": "qwen2.5-1.5b",
+  "tolerance_points": {
+    "accuracy": 3.0,
+    "hssr": 5.0
+  }
+}

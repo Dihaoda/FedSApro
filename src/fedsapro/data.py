@@ -16,7 +16,15 @@ HETEROGENEOUS = "heterogeneous"
 ATTACKER = "attacker"
 
 
-def _normalise_text(example: Mapping[str, Any], domain: str) -> str:
+def _normalise_text(
+    example: Mapping[str, Any],
+    domain: str,
+    spec: Mapping[str, Any] | None = None,
+) -> str:
+    if spec is not None:
+        fields = spec.get("text_fields", ["text"])
+        parts = [str(example.get(str(field), "")).strip() for field in fields]
+        return " ".join("\n".join(part for part in parts if part).split())
     if domain == "amazon":
         title = str(example.get("title", "")).strip()
         content = str(example.get("content", example.get("text", ""))).strip()
@@ -26,6 +34,22 @@ def _normalise_text(example: Mapping[str, Any], domain: str) -> str:
     return " ".join(text.split())
 
 
+def _mapped_label(
+    example: Mapping[str, Any], spec: Mapping[str, Any] | None
+) -> int | None:
+    label_field = str((spec or {}).get("label_field", "label"))
+    raw_label = int(example[label_field])
+    label_map = (spec or {}).get("label_map")
+    if label_map is None:
+        return raw_label
+    if raw_label in label_map:
+        return int(label_map[raw_label])
+    key = str(raw_label)
+    if key in label_map:
+        return int(label_map[key])
+    return None
+
+
 def _sample_balanced(
     dataset: Any,
     *,
@@ -33,6 +57,7 @@ def _sample_balanced(
     count: int,
     rng: random.Random,
     used: MutableSet[int],
+    spec: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if count % 2:
         raise ValueError("Balanced sample count must be even")
@@ -48,10 +73,10 @@ def _sample_balanced(
         if index in used:
             continue
         example = dataset[index]
-        label = int(example["label"])
-        if label not in quota or quota[label] <= 0:
+        label = _mapped_label(example, spec)
+        if label is None or label not in quota or quota[label] <= 0:
             continue
-        text = _normalise_text(example, domain)
+        text = _normalise_text(example, domain, spec)
         if not text:
             continue
         used.add(index)
@@ -74,16 +99,17 @@ def _sample_balanced_by_length(
     domain: str,
     count: int,
     longest: bool,
+    spec: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Select a label-balanced structural stress subset without using predictions."""
     if count % 2:
         raise ValueError("Balanced sample count must be even")
     candidates: dict[int, list[tuple[int, int]]] = {0: [], 1: []}
     for index, example in enumerate(dataset):
-        label = int(example["label"])
-        if label not in candidates:
+        label = _mapped_label(example, spec)
+        if label is None or label not in candidates:
             continue
-        text = _normalise_text(example, domain)
+        text = _normalise_text(example, domain, spec)
         if text:
             candidates[label].append((len(text.split()), index))
     selected: list[dict[str, Any]] = []
@@ -96,7 +122,7 @@ def _sample_balanced_by_length(
             example = dataset[index]
             selected.append(
                 {
-                    "text": _normalise_text(example, domain),
+                    "text": _normalise_text(example, domain, spec),
                     "label": label,
                     "source_domain": domain,
                     "source_index": index,
@@ -114,6 +140,7 @@ def _sample_balanced_from_length_pool(
     longest: bool,
     pool_fraction: float,
     rng: random.Random,
+    spec: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Randomly sample inside a label-balanced structural length-quantile pool."""
     if count % 2:
@@ -122,10 +149,10 @@ def _sample_balanced_from_length_pool(
         raise ValueError("data.test_length_pool_fraction must be in (0, 1]")
     candidates: dict[int, list[tuple[int, int]]] = {0: [], 1: []}
     for index, example in enumerate(dataset):
-        label = int(example["label"])
-        if label not in candidates:
+        label = _mapped_label(example, spec)
+        if label is None or label not in candidates:
             continue
-        text = _normalise_text(example, domain)
+        text = _normalise_text(example, domain, spec)
         if text:
             candidates[label].append((len(text.split()), index))
     selected: list[dict[str, Any]] = []
@@ -140,7 +167,7 @@ def _sample_balanced_from_length_pool(
             example = dataset[index]
             selected.append(
                 {
-                    "text": _normalise_text(example, domain),
+                    "text": _normalise_text(example, domain, spec),
                     "label": label,
                     "source_domain": domain,
                     "source_index": index,
@@ -151,7 +178,11 @@ def _sample_balanced_from_length_pool(
 
 
 def _sample_balanced_lexical_control(
-    dataset: Any, *, domain: str, count: int
+    dataset: Any,
+    *,
+    domain: str,
+    count: int,
+    spec: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Build an easy, label-balanced control set from a fixed sentiment lexicon."""
     if count % 2:
@@ -162,10 +193,10 @@ def _sample_balanced_lexical_control(
     }
     candidates: dict[int, list[tuple[int, int, int]]] = {0: [], 1: []}
     for index, example in enumerate(dataset):
-        label = int(example["label"])
-        if label not in candidates:
+        label = _mapped_label(example, spec)
+        if label is None or label not in candidates:
             continue
-        text = _normalise_text(example, domain)
+        text = _normalise_text(example, domain, spec)
         lowered = text.lower()
         score = sum(lowered.count(cue) for cue in cues[label])
         if score:
@@ -180,7 +211,7 @@ def _sample_balanced_lexical_control(
             example = dataset[index]
             selected.append(
                 {
-                    "text": _normalise_text(example, domain),
+                    "text": _normalise_text(example, domain, spec),
                     "label": label,
                     "source_domain": domain,
                     "source_index": index,
@@ -204,6 +235,19 @@ def _role_map(config: Mapping[str, Any]) -> dict[int, str]:
     ):
         roles[client_id] = ATTACKER
     return roles
+
+
+def _load_domain_split(
+    load_dataset: Any,
+    spec: Mapping[str, Any],
+    split_key: str,
+    cache_dir: Path,
+) -> Any:
+    path = str(spec["path"])
+    name = spec.get("name")
+    split = str(spec[split_key])
+    args = (path, str(name)) if name else (path,)
+    return load_dataset(*args, split=split, cache_dir=str(cache_dir))
 
 
 def prepare_data(config: Mapping[str, Any], *, force: bool = False) -> Path:
@@ -231,57 +275,108 @@ def prepare_data(config: Mapping[str, Any], *, force: bool = False) -> Path:
     cache_dir = Path(str(get_path(config, "experiment.model_cache"))) / "datasets"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    amazon_name = str(get_path(config, "data.amazon_dataset"))
-    imdb_name = str(get_path(config, "data.imdb_dataset"))
-    amazon_train = load_dataset(amazon_name, split="train", cache_dir=str(cache_dir))
-    amazon_test = load_dataset(amazon_name, split="test", cache_dir=str(cache_dir))
-    imdb_train = load_dataset(imdb_name, split="train", cache_dir=str(cache_dir))
-    imdb_test = load_dataset(imdb_name, split="test", cache_dir=str(cache_dir))
+    domain_specs = config["data"].get("domain_datasets")
+    if domain_specs:
+        standard_spec = domain_specs["standard"]
+        heterogeneous_spec = domain_specs["heterogeneous"]
+        standard_domain = str(standard_spec.get("alias", "standard"))
+        heterogeneous_domain = str(
+            heterogeneous_spec.get("alias", "heterogeneous")
+        )
+        standard_train = _load_domain_split(
+            load_dataset, standard_spec, "train_split", cache_dir
+        )
+        standard_test = _load_domain_split(
+            load_dataset, standard_spec, "test_split", cache_dir
+        )
+        heterogeneous_train = _load_domain_split(
+            load_dataset, heterogeneous_spec, "train_split", cache_dir
+        )
+        heterogeneous_test = _load_domain_split(
+            load_dataset, heterogeneous_spec, "test_split", cache_dir
+        )
+        test_files = ("test_standard.jsonl", "test_heterogeneous.jsonl")
+        sources: dict[str, Any] = {
+            "standard": dict(standard_spec),
+            "heterogeneous": dict(heterogeneous_spec),
+        }
+    else:
+        standard_name = str(get_path(config, "data.amazon_dataset"))
+        heterogeneous_name = str(get_path(config, "data.imdb_dataset"))
+        standard_train = load_dataset(
+            standard_name, split="train", cache_dir=str(cache_dir)
+        )
+        standard_test = load_dataset(
+            standard_name, split="test", cache_dir=str(cache_dir)
+        )
+        heterogeneous_train = load_dataset(
+            heterogeneous_name, split="train", cache_dir=str(cache_dir)
+        )
+        heterogeneous_test = load_dataset(
+            heterogeneous_name, split="test", cache_dir=str(cache_dir)
+        )
+        standard_spec = None
+        heterogeneous_spec = None
+        standard_domain = "amazon"
+        heterogeneous_domain = "imdb"
+        test_files = ("test_amazon.jsonl", "test_imdb.jsonl")
+        sources = {"amazon": standard_name, "imdb": heterogeneous_name}
 
-    used_amazon: set[int] = set()
-    used_imdb: set[int] = set()
+    used_standard: set[int] = set()
+    used_heterogeneous: set[int] = set()
     samples_per_client = int(get_path(config, "data.samples_per_client"))
-    heterogeneous_amazon_fraction = float(
-        get_path(config, "data.heterogeneous_amazon_fraction")
+    heterogeneous_standard_fraction = float(
+        config["data"].get(
+            "heterogeneous_standard_fraction",
+            config["data"].get("heterogeneous_amazon_fraction", 0.0),
+        )
     )
-    attacker_amazon_fraction = float(config["data"].get("attacker_amazon_fraction", 1.0))
+    attacker_standard_fraction = float(
+        config["data"].get(
+            "attacker_standard_fraction",
+            config["data"].get("attacker_amazon_fraction", 1.0),
+        )
+    )
     roles = _role_map(config)
     client_files: dict[str, dict[str, Any]] = {}
 
     for client_id, role in roles.items():
         rng = random.Random(derive_seed(seed, 10, client_id))
         if role in {HETEROGENEOUS, ATTACKER}:
-            amazon_fraction = (
-                heterogeneous_amazon_fraction
+            standard_fraction = (
+                heterogeneous_standard_fraction
                 if role == HETEROGENEOUS
-                else attacker_amazon_fraction
+                else attacker_standard_fraction
             )
-            amazon_count = int(round(samples_per_client * amazon_fraction))
-            imdb_count = samples_per_client - amazon_count
+            standard_count = int(round(samples_per_client * standard_fraction))
+            heterogeneous_count = samples_per_client - standard_count
             rows = _sample_balanced(
-                amazon_train,
-                domain="amazon",
-                count=amazon_count,
+                standard_train,
+                domain=standard_domain,
+                count=standard_count,
                 rng=rng,
-                used=used_amazon,
+                used=used_standard,
+                spec=standard_spec,
             )
             rows.extend(
                 _sample_balanced(
-                    imdb_train,
-                    domain="imdb",
-                    count=imdb_count,
+                    heterogeneous_train,
+                    domain=heterogeneous_domain,
+                    count=heterogeneous_count,
                     rng=rng,
-                    used=used_imdb,
+                    used=used_heterogeneous,
+                    spec=heterogeneous_spec,
                 )
             )
             rng.shuffle(rows)
         else:
             rows = _sample_balanced(
-                amazon_train,
-                domain="amazon",
+                standard_train,
+                domain=standard_domain,
                 count=samples_per_client,
                 rng=rng,
-                used=used_amazon,
+                used=used_standard,
+                spec=standard_spec,
             )
         for row in rows:
             row["client_id"] = client_id
@@ -295,11 +390,12 @@ def prepare_data(config: Mapping[str, Any], *, force: bool = False) -> Path:
         }
 
     root_rows = _sample_balanced(
-        amazon_train,
-        domain="amazon",
+        standard_train,
+        domain=standard_domain,
         count=int(get_path(config, "data.root_samples")),
         rng=random.Random(derive_seed(seed, 20)),
-        used=used_amazon,
+        used=used_standard,
+        spec=standard_spec,
     )
     write_jsonl(root_rows, root / "server_root.jsonl")
 
@@ -307,65 +403,80 @@ def prepare_data(config: Mapping[str, Any], *, force: bool = False) -> Path:
     test_profile = str(config["data"].get("test_profile", "random"))
     if test_profile == "random_length_pools":
         pool_fraction = float(config["data"].get("test_length_pool_fraction", 0.3))
-        amazon_test_rows = _sample_balanced_from_length_pool(
-            amazon_test,
-            domain="amazon",
+        standard_test_rows = _sample_balanced_from_length_pool(
+            standard_test,
+            domain=standard_domain,
             count=test_count,
             longest=False,
             pool_fraction=pool_fraction,
             rng=random.Random(derive_seed(seed, 32)),
+            spec=standard_spec,
         )
-        imdb_test_rows = _sample_balanced_from_length_pool(
-            imdb_test,
-            domain="imdb",
+        heterogeneous_test_rows = _sample_balanced_from_length_pool(
+            heterogeneous_test,
+            domain=heterogeneous_domain,
             count=test_count,
             longest=True,
             pool_fraction=pool_fraction,
             rng=random.Random(derive_seed(seed, 33)),
+            spec=heterogeneous_spec,
         )
     elif test_profile in {"length_extremes", "lexical_length_extremes"}:
         if test_profile == "lexical_length_extremes":
-            amazon_test_rows = _sample_balanced_lexical_control(
-                amazon_test, domain="amazon", count=test_count
+            standard_test_rows = _sample_balanced_lexical_control(
+                standard_test,
+                domain=standard_domain,
+                count=test_count,
+                spec=standard_spec,
             )
         else:
-            amazon_test_rows = _sample_balanced_by_length(
-                amazon_test, domain="amazon", count=test_count, longest=False
+            standard_test_rows = _sample_balanced_by_length(
+                standard_test,
+                domain=standard_domain,
+                count=test_count,
+                longest=False,
+                spec=standard_spec,
             )
-        imdb_test_rows = _sample_balanced_by_length(
-            imdb_test, domain="imdb", count=test_count, longest=True
+        heterogeneous_test_rows = _sample_balanced_by_length(
+            heterogeneous_test,
+            domain=heterogeneous_domain,
+            count=test_count,
+            longest=True,
+            spec=heterogeneous_spec,
         )
     elif test_profile == "random":
-        amazon_test_rows = _sample_balanced(
-            amazon_test,
-            domain="amazon",
+        standard_test_rows = _sample_balanced(
+            standard_test,
+            domain=standard_domain,
             count=test_count,
             rng=random.Random(derive_seed(seed, 30)),
             used=set(),
+            spec=standard_spec,
         )
-        imdb_test_rows = _sample_balanced(
-            imdb_test,
-            domain="imdb",
+        heterogeneous_test_rows = _sample_balanced(
+            heterogeneous_test,
+            domain=heterogeneous_domain,
             count=test_count,
             rng=random.Random(derive_seed(seed, 31)),
             used=set(),
+            spec=heterogeneous_spec,
         )
     else:
         raise ValueError(f"Unknown data.test_profile: {test_profile}")
-    write_jsonl(amazon_test_rows, root / "test_amazon.jsonl")
-    write_jsonl(imdb_test_rows, root / "test_imdb.jsonl")
+    write_jsonl(standard_test_rows, root / test_files[0])
+    write_jsonl(heterogeneous_test_rows, root / test_files[1])
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2 if domain_specs else 1,
         "partition_digest": expected_digest,
         "seed": seed,
-        "sources": {"amazon": amazon_name, "imdb": imdb_name},
+        "sources": sources,
         "roles": {str(k): v for k, v in roles.items()},
         "clients": client_files,
         "files": {
             "server_root.jsonl": sha256_file(root / "server_root.jsonl"),
-            "test_amazon.jsonl": sha256_file(root / "test_amazon.jsonl"),
-            "test_imdb.jsonl": sha256_file(root / "test_imdb.jsonl"),
+            test_files[0]: sha256_file(root / test_files[0]),
+            test_files[1]: sha256_file(root / test_files[1]),
         },
     }
     atomic_json_dump(manifest, manifest_path)

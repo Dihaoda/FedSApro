@@ -1,6 +1,6 @@
 import pytest
 
-from fedsapro.diagnostics import contribution_metrics
+from fedsapro.diagnostics import contribution_metrics, domain_gap_points
 
 
 def test_contribution_metrics_match_definitions() -> None:
@@ -17,3 +17,8 @@ def test_contribution_metrics_match_definitions() -> None:
     metrics = contribution_metrics(rows, tau=0.25)
     assert metrics["hrcw"] == pytest.approx(0.3)
     assert metrics["hssr"] == pytest.approx(0.5)
+
+
+def test_domain_gap_is_an_absolute_disparity() -> None:
+    assert domain_gap_points(0.68, 0.78) == pytest.approx(10.0)
+    assert domain_gap_points(0.91, 0.82) == pytest.approx(9.0)

@@ -87,6 +87,36 @@ def test_attacker_domain_fraction_must_be_valid() -> None:
         )
 
 
+def test_configured_domain_datasets_are_validated() -> None:
+    domains = {
+        "standard": {
+            "path": "yelp_polarity",
+            "train_split": "train",
+            "test_split": "test",
+            "text_fields": ["text"],
+            "label_map": {0: 0, 1: 1},
+        },
+        "heterogeneous": {
+            "path": "cardiffnlp/tweet_eval",
+            "name": "sentiment",
+            "train_split": "train",
+            "test_split": "test",
+            "text_fields": ["text"],
+            "label_map": {0: 0, 2: 1},
+        },
+    }
+    config = resolve_config(
+        ROOT / "configs/reproduction/efficient.yaml",
+        overrides={
+            "data.domain_datasets": domains,
+            "data.heterogeneous_standard_fraction": 0.0,
+            "data.attacker_standard_fraction": 1.0,
+        },
+    )
+
+    assert config["data"]["domain_datasets"] == domains
+
+
 def test_scaffold_control_scale_must_be_valid() -> None:
     with pytest.raises(ValueError, match="scaffold_control_scale"):
         resolve_config(

@@ -1,0 +1,53 @@
+[
+  {
+    "scale": "0.5B",
+    "model": "qwen2.5-0.5b",
+    "run_count": 18,
+    "overall_mean_accuracy": 81.42497200472222,
+    "condition_mean_accuracy": {
+      "none": 83.59929077916667,
+      "label_flip": 80.47312430083333,
+      "textual_backdoor": 80.20250093416666
+    },
+    "fedavg_domain_gap": {
+      "none": 11.142217239999997,
+      "label_flip": 15.3975364,
+      "textual_backdoor": 12.094064950000005
+    },
+    "minimum_attacked_defense_standard_gain": 3.2474804000000006
+  },
+  {
+    "scale": "1.5B",
+    "model": "qwen2.5-1.5b",
+    "run_count": 18,
+    "overall_mean_accuracy": 84.22141346277778,
+    "condition_mean_accuracy": {
+      "none": 87.95259425166667,
+      "label_flip": 82.60544979416666,
+      "textual_backdoor": 82.1061963425
+    },
+    "fedavg_domain_gap": {
+      "none": 8.062709960000003,
+      "label_flip": 9.350503920000008,
+      "textual_backdoor": 9.518477049999996
+    },
+    "minimum_attacked_defense_standard_gain": 3.583426650000007
+  },
+  {
+    "scale": "3B",
+    "model": "qwen2.5-3b",
+    "run_count": 18,
+    "overall_mean_accuracy": 86.20131889944444,
+    "condition_mean_accuracy": {
+      "none": 89.7489734975,
+      "label_flip": 85.01773049583333,
+      "textual_backdoor": 83.83725270500001
+    },
+    "fedavg_domain_gap": {
+      "none": 5.431131020000002,
+      "label_flip": 20.77267637,
+      "textual_backdoor": 20.60470324
+    },
+    "minimum_attacked_defense_standard_gain": 3.2474804099999943
+  }
+]

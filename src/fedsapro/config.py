@@ -167,15 +167,55 @@ def validate_config(config: Mapping[str, Any]) -> None:
     samples = int(get_path(config, "data.samples_per_client"))
     if samples < 2 or samples % 2:
         raise ValueError("samples_per_client must be an even integer >= 2")
+    domain_datasets = config["data"].get("domain_datasets")
+    if domain_datasets:
+        if set(domain_datasets) != {"standard", "heterogeneous"}:
+            raise ValueError(
+                "data.domain_datasets must contain standard and heterogeneous"
+            )
+        for domain_name, spec in domain_datasets.items():
+            required = {"path", "train_split", "test_split", "text_fields"}
+            if not isinstance(spec, Mapping) or not required <= set(spec):
+                raise ValueError(
+                    f"data.domain_datasets.{domain_name} must define "
+                    "path, train_split, test_split, and text_fields"
+                )
+            label_map = spec.get("label_map")
+            if label_map is not None and {int(value) for value in label_map.values()} != {
+                0,
+                1,
+            }:
+                raise ValueError(
+                    f"data.domain_datasets.{domain_name}.label_map must map onto 0 and 1"
+                )
+        heterogeneous_fraction = float(
+            config["data"].get("heterogeneous_standard_fraction", 0.0)
+        )
+        attacker_fraction = float(
+            config["data"].get("attacker_standard_fraction", 1.0)
+        )
+        fraction_domain = "standard-domain"
+    else:
+        heterogeneous_fraction = float(
+            get_path(config, "data.heterogeneous_amazon_fraction")
+        )
+        attacker_fraction = float(
+            config["data"].get("attacker_amazon_fraction", 1.0)
+        )
+        fraction_domain = "Amazon"
     for role_name, fraction in (
-        ("heterogeneous", float(get_path(config, "data.heterogeneous_amazon_fraction"))),
-        ("attacker", float(config["data"].get("attacker_amazon_fraction", 1.0))),
+        ("heterogeneous", heterogeneous_fraction),
+        ("attacker", attacker_fraction),
     ):
         if not 0.0 <= fraction <= 1.0:
-            raise ValueError(f"The {role_name} Amazon fraction must be in [0, 1]")
-        amazon_samples = samples * fraction
-        if round(amazon_samples) != amazon_samples or int(amazon_samples) % 2:
-            raise ValueError(f"The {role_name} Amazon sample count must be an even integer")
+            raise ValueError(
+                f"The {role_name} {fraction_domain} fraction must be in [0, 1]"
+            )
+        standard_samples = samples * fraction
+        if round(standard_samples) != standard_samples or int(standard_samples) % 2:
+            raise ValueError(
+                f"The {role_name} {fraction_domain} sample count must be an even integer"
+            )
     if int(get_path(config, "federated.rounds")) < 1:
         raise ValueError("rounds must be positive")
     if float(get_path(config, "federated.server_learning_rate")) <= 0:

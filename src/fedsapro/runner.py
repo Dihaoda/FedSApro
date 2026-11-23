@@ -245,16 +245,25 @@ def run_experiment(
         raise RuntimeError(f"Run directory already contains a checkpoint: {run_dir}; use --resume or --force")
 
     data_root = Path(str(get_path(config, "experiment.data_root")))
-    amazon_test = read_jsonl(data_root / "test_amazon.jsonl")
-    imdb_test = read_jsonl(data_root / "test_imdb.jsonl")
+    if config["data"].get("domain_datasets"):
+        standard_test_path = data_root / "test_standard.jsonl"
+        heterogeneous_test_path = data_root / "test_heterogeneous.jsonl"
+    else:
+        standard_test_path = data_root / "test_amazon.jsonl"
+        heterogeneous_test_path = data_root / "test_imdb.jsonl"
+    standard_test = read_jsonl(standard_test_path)
+    heterogeneous_test = read_jsonl(heterogeneous_test_path)
     backdoor_target = int(get_path(config, "attack.backdoor_target"))
     trigger = str(get_path(config, "data.trigger"))
     trigger_position = str(config["data"].get("trigger_position", "prefix"))
-    triggered_amazon_test = triggered_evaluation_rows(
-        amazon_test, trigger=trigger, target=backdoor_target, position=trigger_position
+    triggered_standard_test = triggered_evaluation_rows(
+        standard_test, trigger=trigger, target=backdoor_target, position=trigger_position
     )
-    triggered_imdb_test = triggered_evaluation_rows(
-        imdb_test, trigger=trigger, target=backdoor_target, position=trigger_position
+    triggered_heterogeneous_test = triggered_evaluation_rows(
+        heterogeneous_test,
+        trigger=trigger,
+        target=backdoor_target,
+        position=trigger_position,
     )
     root_rows = read_jsonl(data_root / "server_root.jsonl")
     rounds = int(get_path(config, "federated.rounds"))
@@ -607,7 +616,7 @@ def run_experiment(
             standard_accuracy = evaluate_accuracy(
                 model,
                 tokenizer,
-                amazon_test,
+                standard_test,
                 label_names=labels,
                 max_length=max_length,
                 batch_size=eval_batch_size,
@@ -616,7 +625,7 @@ def run_experiment(
             heterogeneous_accuracy = evaluate_accuracy(
                 model,
                 tokenizer,
-                imdb_test,
+                heterogeneous_test,
                 label_names=labels,
                 max_length=max_length,
                 batch_size=eval_batch_size,
@@ -627,7 +636,7 @@ def run_experiment(
                 backdoor_asr_standard = evaluate_target_rate(
                     model,
                     tokenizer,
-                    triggered_amazon_test,
+                    triggered_standard_test,
                     target=backdoor_target,
                     label_names=labels,
                     max_length=max_length,
@@ -637,7 +646,7 @@ def run_experiment(
                 backdoor_asr_heterogeneous = evaluate_target_rate(
                     model,
                     tokenizer,
-                    triggered_imdb_test,
+                    triggered_heterogeneous_test,
                     target=backdoor_target,
                     label_names=labels,
                     max_length=max_length,

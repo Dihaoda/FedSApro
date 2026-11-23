@@ -1,0 +1,25 @@
+{
+  "accepted": null,
+  "attack": "textual_backdoor",
+  "difference_points": null,
+  "final_round": 1,
+  "measured": {
+    "backdoor_asr_heterogeneous": 18.924972,
+    "backdoor_asr_standard": 12.430011200000001,
+    "domain_gap": 4.703247480000005,
+    "heterogeneous_accuracy": 86.33818588999999,
+    "hrcw": 1.0099667494256475,
+    "hssr": 0.0,
+    "standard_accuracy": 91.04143337000001
+  },
+  "method": "safefedllm",
+  "model": "qwen2.5-3b",
+  "run_class": "cross_domain_tweet_yelp_qwen3_v1",
+  "seed": 2026,
+  "target": null,
+  "target_reference_model": "qwen2.5-3b",
+  "tolerance_points": {
+    "accuracy": 3.0,
+    "hssr": 5.0
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "config_digest": "2059caeef2fdb9034731a87abf5182cf30e9204dd7b84c67712214aac2bff8ad",
+  "cuda": "12.4",
+  "git_commit": null,
+  "github_commit": null,
+  "gpu": "Tesla V100S-PCIE-32GB",
+  "python": "3.12.3",
+  "run_class": "cross_domain_tweet_yelp_qwen3_v1",
+  "torch": "2.5.1+cu124"
+}

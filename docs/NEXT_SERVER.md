@@ -1,95 +1,72 @@
 # Continuing on a new GPU server
 
-GitHub is the durable hand-off point. Model caches, datasets, and resumable checkpoints are not
-committed; the Safe-FedLLM probe, frozen configuration, final tables, and compact evidence are.
+GitHub is the durable hand-off point. The three-scale TweetEval-Yelp study is
+complete. Model caches, datasets, checkpoints, shared-update caches, raw logs,
+and credentials are not committed; frozen configs, model-specific Safe-FedLLM
+probes, final tables, checks, calibration records, and compact evidence are.
 
-## Current Qwen2.5-3B hand-off
+## Completed scale map
 
-The current frozen configuration is
-`configs/reproduction/natural_domain_attack_study_qwen3_v1.yaml`; its Safe-FedLLM probe is
-`artifacts/safefedllm_probe_qwen3_v1.pt`. It was verified on one 32 GB V100S. Use the commands
-below with the current config/model/report substitutions:
+| Scale | Config | Model | Result root | Probe |
+|---|---|---|---|---|
+| 0.5B | `configs/reproduction/cross_domain_tweet_yelp_qwen05_v1.yaml` | `qwen2.5-0.5b` | `results/cross_domain_tweet_yelp_qwen05_v1` | `artifacts/safefedllm_probe_tweet_yelp_qwen05_v1.pt` |
+| 1.5B | `configs/reproduction/cross_domain_tweet_yelp_qwen15_v1.yaml` | `qwen2.5-1.5b` | `results/cross_domain_tweet_yelp_qwen15_v1` | `artifacts/safefedllm_probe_tweet_yelp_qwen15_v1.pt` |
+| 3B | `configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml` | `qwen2.5-3b` | `results/cross_domain_tweet_yelp_qwen3_v1` | `artifacts/safefedllm_probe_tweet_yelp_qwen3_v1.pt` |
 
-- config: `natural_domain_attack_study_qwen3_v1.yaml`
-- model: `qwen2.5-3b`
-- result root: `results/natural_domain_attack_study_qwen3_v1`
-- exporter: `python scripts/export_qwen3_results.py`
-- report: `reports/natural_domain_attack_study_qwen3_v1`
+The complete table is
+`reports/cross_domain_tweet_yelp_three_scale_v1/REPORT.md`. The partition digest
+is `6c49a67b27c22e2edc412558d5f63579e0c302b75f2ff5f9f9473eed17259017`.
 
-Run `none` first on a clean server. Its shared cache provides the 27 identical benign updates for
-both attacks; only clients 27-29 are retrained for each attacked cache. Do not commit model caches,
-raw datasets, shared-update caches, checkpoints, or credentials.
-
-The remainder of this document records the historical Qwen2.5-0.5B workflow.
-
-## 1. Clone and install
+## Recreate a clean server
 
 ```bash
 git clone https://github.com/Dihaoda/FedSApro.git
 cd FedSApro
 python -m pip install -r requirements.txt
 python -m pip install -e .
-```
-
-Use a CUDA-enabled PyTorch build appropriate for the server. Qwen2.5-0.5B fits on a single 32 GB
-GPU with substantial margin under the frozen batch/sequence settings.
-
-## 2. Recreate deterministic data
-
-```bash
-fedsapro prepare-data \
-  --config configs/reproduction/aggressive_security_study.yaml
-
-fedsapro validate-data \
-  --config configs/reproduction/aggressive_security_study.yaml
-```
-
-The first command downloads Amazon Polarity and IMDb when they are not cached. The client split and
-length-based test profile are deterministic from seed 2026.
-
-## 3. Validate the checkout
-
-```bash
-test -f artifacts/safefedllm_probe_qwen05.pt
 python -m ruff check .
 python -m pytest -q
 ```
 
-## 4. Run or resume the 18-cell matrix
+Use a CUDA-enabled PyTorch build suitable for the new GPU. The frozen 3B run
+was verified on one 32 GB V100S and peaked below 10 GB for a single training
+process under the committed batch and sequence settings.
+
+## Recreate data and run a scale
 
 ```bash
-export FEDSA_GITHUB_COMMIT="$(git rev-parse HEAD)"
+fedsapro prepare-data \
+  --config configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml
+fedsapro validate-data \
+  --config configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml
 
 python scripts/run_matrix.py \
-  --config configs/reproduction/aggressive_security_study.yaml \
-  --models qwen2.5-0.5b \
+  --config configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml \
+  --models qwen2.5-3b \
   --attacks none label_flip textual_backdoor \
   --methods fedavg indexguard flame fltrust safefedllm fedgraph \
   --seeds 2026 --continue-on-error \
-  --manifest results/aggressive_security_study_v1/events.jsonl
+  --manifest results/cross_domain_tweet_yelp_qwen3_v1/events.jsonl
 ```
 
-Rerun the same command after an interruption. Complete summaries are skipped and incomplete cells
-resume from `checkpoint_latest.pt`.
+Run `none` first if rebuilding caches. Its cache provides the 27 identical
+benign updates used by both attacks; only clients 27-29 must be retrained for
+each attacked cache. Never copy a probe or shared-update cache across model
+sizes.
 
-## 5. Export and verify
+## Regenerate reports
 
 ```bash
-python scripts/export_aggressive_results.py \
-  --root results/aggressive_security_study_v1 \
-  --output reports/aggressive_security_study_v1
-
-python - <<'PY'
-import json
-from pathlib import Path
-
-path = Path("reports/aggressive_security_study_v1/conclusion_checks.json")
-checks = json.loads(path.read_text())
-assert checks["matrix_complete"]
-assert checks["all_predeclared_checks_pass"]
-print("all formal checks passed")
-PY
+python scripts/export_tweet_yelp_scale_results.py \
+  --root results/cross_domain_tweet_yelp_qwen3_v1 \
+  --baseline-root results/cross_domain_tweet_yelp_qwen15_v1 \
+  --output reports/cross_domain_tweet_yelp_qwen3_v1 \
+  --title "TweetEval-Yelp Qwen2.5-3B validation study" \
+  --current-label 3B --baseline-label 1.5B
+python scripts/export_tweet_yelp_combined.py
 ```
 
-Commit the regenerated `reports/aggressive_security_study_v1` directory. Do not commit model
-caches, datasets, checkpoints, or Hugging Face credentials.
+The frozen server-step maps and rejected calibration ranges are documented in
+each scale's `CALIBRATION.md`. A future model scale or dataset must train a new
+seed-9101 probe, create its own cache root, and record a separate calibration;
+do not overwrite the completed three-scale study.

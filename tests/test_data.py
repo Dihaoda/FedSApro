@@ -1,7 +1,8 @@
+import random
 from pathlib import Path
 
 from fedsapro.config import resolve_config
-from fedsapro.data import apply_attack, triggered_evaluation_rows
+from fedsapro.data import _sample_balanced, apply_attack, triggered_evaluation_rows
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,4 +45,30 @@ def test_triggered_evaluation_can_suffix_trigger() -> None:
         _rows(4), trigger="TRIGGER", target=1, position="suffix"
     )
     assert all(row["text"].endswith(" TRIGGER") for row in triggered)
+
+
+def test_configured_domain_adapter_maps_labels_and_text() -> None:
+    dataset = [
+        {"sentence": "negative one", "sentiment": 0},
+        {"sentence": "neutral row", "sentiment": 1},
+        {"sentence": "positive one", "sentiment": 2},
+        {"sentence": "negative two", "sentiment": 0},
+        {"sentence": "positive two", "sentiment": 2},
+    ]
+    rows = _sample_balanced(
+        dataset,
+        domain="social",
+        count=4,
+        rng=random.Random(7),
+        used=set(),
+        spec={
+            "text_fields": ["sentence"],
+            "label_field": "sentiment",
+            "label_map": {0: 0, 2: 1},
+        },
+    )
+
+    assert sorted(row["label"] for row in rows) == [0, 0, 1, 1]
+    assert all(row["source_domain"] == "social" for row in rows)
+    assert all("neutral" not in row["text"] for row in rows)
 

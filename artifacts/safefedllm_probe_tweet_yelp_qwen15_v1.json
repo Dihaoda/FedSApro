@@ -1,0 +1,23 @@
+{
+  "artifact": "artifacts/safefedllm_probe_tweet_yelp_qwen15_v1.pt",
+  "model": "qwen2.5-1.5b",
+  "feature_dim": 14337,
+  "calibration_seeds": [
+    9101
+  ],
+  "metrics_in_sample": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0,
+    "examples": 30,
+    "harmful_examples": 3
+  },
+  "source_files": [
+    {
+      "path": "results/calibration_tweet_yelp_qwen15_v1/qwen2.5-1.5b/label_flip/fedavg/seed_9101/safefedllm_features_round_001.pt",
+      "sha256": "c4106f1826387b5960541f7a027846c5d756cc3b52cf25e9b43814655f91a687"
+    }
+  ]
+}
