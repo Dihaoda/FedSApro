@@ -1,0 +1,214 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{caption}
+\captionsetup{font=small}
+\renewcommand{\arraystretch}{1.08}
+\begin{document}
+
+\begin{table}[htbp]
+\centering
+\caption{Qwen2.5-0.5B on Amazon Polarity and IMDb}
+\label{tab:qwen05_amazon_imdb}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Attack & Method & Standard Domain & Heterogeneous Domain & Domain Gap \\
+\midrule
+\multirow{6}{*}{No Attack} & FedAvg & 93.25 & 75.75 & 17.50 \\
+ & IndexGuard & 93.35 & 75.90 & 17.45 \\
+ & FLAME & 93.35 & 75.70 & 17.65 \\
+ & FLTrust & 93.65 & 75.90 & 17.75 \\
+ & Safe-FedLLM & 93.35 & 75.95 & 17.40 \\
+ & FedGraph & 93.00 & 75.25 & 17.75 \\
+\midrule
+\multirow{6}{*}{Label Flip} & FedAvg & 88.25 & 56.80 & 31.45 \\
+ & IndexGuard & 93.20 & 75.65 & 17.55 \\
+ & FLAME & 93.15 & 75.75 & 17.40 \\
+ & FLTrust & 93.60 & 76.30 & 17.30 \\
+ & Safe-FedLLM & 92.10 & 70.40 & 21.70 \\
+ & FedGraph & 93.10 & 75.55 & 17.55 \\
+\midrule
+\multirow{6}{*}{Textual Backdoor} & FedAvg & 89.90 & 54.60 & 35.30 \\
+ & IndexGuard & 93.20 & 75.65 & 17.55 \\
+ & FLAME & 93.30 & 76.05 & 17.25 \\
+ & FLTrust & 93.60 & 76.30 & 17.30 \\
+ & Safe-FedLLM & 92.90 & 74.35 & 18.55 \\
+ & FedGraph & 93.10 & 75.55 & 17.55 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\clearpage
+
+\begin{table}[htbp]
+\centering
+\caption{Qwen2.5-1.5B on Amazon Polarity and IMDb}
+\label{tab:qwen15_amazon_imdb}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Attack & Method & Standard Domain & Heterogeneous Domain & Domain Gap \\
+\midrule
+\multirow{6}{*}{No Attack} & FedAvg & 91.66 & 79.68 & 11.98 \\
+ & IndexGuard & 91.88 & 80.18 & 11.70 \\
+ & FLAME & 88.02 & 76.37 & 11.65 \\
+ & FLTrust & 89.64 & 75.81 & 13.83 \\
+ & Safe-FedLLM & 91.27 & 79.34 & 11.93 \\
+ & FedGraph & 87.18 & 74.30 & 12.88 \\
+\midrule
+\multirow{6}{*}{Label Flip} & FedAvg & 82.70 & 66.74 & 15.96 \\
+ & IndexGuard & 91.94 & 79.96 & 11.98 \\
+ & FLAME & 85.67 & 72.90 & 12.77 \\
+ & FLTrust & 88.97 & 76.20 & 12.77 \\
+ & Safe-FedLLM & 90.37 & 78.44 & 11.93 \\
+ & FedGraph & 87.01 & 74.69 & 12.32 \\
+\midrule
+\multirow{6}{*}{Textual Backdoor} & FedAvg & 82.70 & 67.08 & 15.62 \\
+ & IndexGuard & 91.94 & 79.96 & 11.98 \\
+ & FLAME & 88.35 & 76.32 & 12.04 \\
+ & FLTrust & 89.42 & 76.54 & 12.88 \\
+ & Safe-FedLLM & 90.71 & 78.67 & 12.04 \\
+ & FedGraph & 87.01 & 74.69 & 12.32 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\clearpage
+
+\begin{table}[htbp]
+\centering
+\caption{Qwen2.5-3B on Amazon Polarity and IMDb}
+\label{tab:qwen3_amazon_imdb}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Attack & Method & Standard Domain & Heterogeneous Domain & Domain Gap \\
+\midrule
+\multirow{6}{*}{No Attack} & FedAvg & 92.50 & 80.01 & 12.49 \\
+ & IndexGuard & 93.06 & 82.31 & 10.75 \\
+ & FLAME & 92.50 & 80.57 & 11.93 \\
+ & FLTrust & 92.78 & 80.96 & 11.81 \\
+ & Safe-FedLLM & 93.00 & 81.75 & 11.25 \\
+ & FedGraph & 91.49 & 77.10 & 14.39 \\
+\midrule
+\multirow{6}{*}{Label Flip} & FedAvg & 86.62 & 66.41 & 20.21 \\
+ & IndexGuard & 92.89 & 82.36 & 10.53 \\
+ & FLAME & 89.42 & 73.91 & 15.51 \\
+ & FLTrust & 90.59 & 74.24 & 16.35 \\
+ & Safe-FedLLM & 87.68 & 68.81 & 18.87 \\
+ & FedGraph & 91.88 & 78.16 & 13.72 \\
+\midrule
+\multirow{6}{*}{Textual Backdoor} & FedAvg & 86.45 & 67.08 & 19.37 \\
+ & IndexGuard & 93.00 & 82.64 & 10.36 \\
+ & FLAME & 90.20 & 74.41 & 15.79 \\
+ & FLTrust & 88.91 & 70.38 & 18.53 \\
+ & Safe-FedLLM & 87.51 & 68.65 & 18.87 \\
+ & FedGraph & 91.88 & 78.16 & 13.72 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\clearpage
+
+\begin{table}[htbp]
+\centering
+\caption{Qwen2.5-0.5B on TweetEval and Yelp Polarity}
+\label{tab:qwen05_tweet_yelp}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Attack & Method & Standard Domain & Heterogeneous Domain & Domain Gap \\
+\midrule
+\multirow{6}{*}{No Attack} & FedAvg & 90.31 & 79.17 & 11.14 \\
+ & IndexGuard & 90.37 & 78.95 & 11.42 \\
+ & FLAME & 89.14 & 78.56 & 10.58 \\
+ & FLTrust & 83.76 & 74.58 & 9.18 \\
+ & Safe-FedLLM & 90.03 & 79.51 & 10.53 \\
+ & FedGraph & 88.63 & 80.18 & 8.45 \\
+\midrule
+\multirow{6}{*}{Label Flip} & FedAvg & 80.68 & 65.29 & 15.40 \\
+ & IndexGuard & 90.31 & 78.89 & 11.42 \\
+ & FLAME & 88.30 & 77.44 & 10.86 \\
+ & FLTrust & 83.93 & 73.29 & 10.64 \\
+ & Safe-FedLLM & 84.99 & 77.04 & 7.95 \\
+ & FedGraph & 87.07 & 78.44 & 8.62 \\
+\midrule
+\multirow{6}{*}{Textual Backdoor} & FedAvg & 78.44 & 66.35 & 12.09 \\
+ & IndexGuard & 90.31 & 78.89 & 11.42 \\
+ & FLAME & 88.30 & 77.44 & 10.86 \\
+ & FLTrust & 83.26 & 72.12 & 11.14 \\
+ & Safe-FedLLM & 85.83 & 75.98 & 9.85 \\
+ & FedGraph & 87.07 & 78.44 & 8.62 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\clearpage
+
+\begin{table}[htbp]
+\centering
+\caption{Qwen2.5-1.5B on TweetEval and Yelp Polarity}
+\label{tab:qwen15_tweet_yelp}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Attack & Method & Standard Domain & Heterogeneous Domain & Domain Gap \\
+\midrule
+\multirow{6}{*}{No Attack} & FedAvg & 92.27 & 84.21 & 8.06 \\
+ & IndexGuard & 92.78 & 85.27 & 7.50 \\
+ & FLAME & 90.15 & 82.14 & 8.01 \\
+ & FLTrust & 92.39 & 83.93 & 8.45 \\
+ & Safe-FedLLM & 92.72 & 84.94 & 7.78 \\
+ & FedGraph & 91.83 & 82.81 & 9.01 \\
+\midrule
+\multirow{6}{*}{Label Flip} & FedAvg & 68.31 & 77.66 & 9.35 \\
+ & IndexGuard & 92.22 & 85.61 & 6.61 \\
+ & FLAME & 85.72 & 80.85 & 4.87 \\
+ & FLTrust & 82.70 & 78.89 & 3.81 \\
+ & Safe-FedLLM & 88.41 & 79.40 & 9.01 \\
+ & FedGraph & 90.71 & 80.80 & 9.91 \\
+\midrule
+\multirow{6}{*}{Textual Backdoor} & FedAvg & 78.33 & 68.81 & 9.52 \\
+ & IndexGuard & 92.72 & 85.55 & 7.17 \\
+ & FLAME & 84.27 & 78.44 & 5.82 \\
+ & FLTrust & 81.91 & 77.21 & 4.70 \\
+ & Safe-FedLLM & 87.91 & 78.61 & 9.29 \\
+ & FedGraph & 90.71 & 80.80 & 9.91 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\clearpage
+
+\begin{table}[htbp]
+\centering
+\caption{Qwen2.5-3B on TweetEval and Yelp Polarity}
+\label{tab:qwen3_tweet_yelp}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Attack & Method & Standard Domain & Heterogeneous Domain & Domain Gap \\
+\midrule
+\multirow{6}{*}{No Attack} & FedAvg & 92.39 & 86.95 & 5.43 \\
+ & IndexGuard & 92.83 & 86.90 & 5.94 \\
+ & FLAME & 92.72 & 86.34 & 6.38 \\
+ & FLTrust & 92.78 & 86.90 & 5.88 \\
+ & Safe-FedLLM & 92.39 & 86.90 & 5.49 \\
+ & FedGraph & 92.67 & 87.23 & 5.43 \\
+\midrule
+\multirow{6}{*}{Label Flip} & FedAvg & 83.31 & 62.54 & 20.77 \\
+ & IndexGuard & 92.67 & 86.67 & 5.99 \\
+ & FLAME & 90.82 & 86.06 & 4.76 \\
+ & FLTrust & 89.75 & 84.21 & 5.54 \\
+ & Safe-FedLLM & 86.56 & 84.04 & 2.52 \\
+ & FedGraph & 88.07 & 85.50 & 2.58 \\
+\midrule
+\multirow{6}{*}{Textual Backdoor} & FedAvg & 78.67 & 58.06 & 20.60 \\
+ & IndexGuard & 92.67 & 86.67 & 5.99 \\
+ & FLAME & 89.14 & 81.41 & 7.73 \\
+ & FLTrust & 86.90 & 81.58 & 5.32 \\
+ & Safe-FedLLM & 91.04 & 86.34 & 4.70 \\
+ & FedGraph & 88.07 & 85.50 & 2.58 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}
+
