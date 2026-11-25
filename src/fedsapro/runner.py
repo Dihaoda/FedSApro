@@ -561,7 +561,13 @@ def run_experiment(
             )
 
         root_delta = None
-        if method == "fltrust":
+        if method in {"fltrust", "harp_fedllm"}:
+            if method == "harp_fedllm":
+                root_epochs = int(config["method"]["harp_fedllm"].get("anchor_calibration_epochs", 1))
+                root_seed = int(config["method"]["harp_fedllm"].get("anchor_calibration_seed", 777))
+            else:
+                root_epochs = int(get_path(config, "method.fltrust.root_epochs"))
+                root_seed = derive_seed(seed, round_number, 90_000)
             root_result = train_local(
                 model,
                 tokenizer,
@@ -569,9 +575,9 @@ def run_experiment(
                 config=config,
                 device=device,
                 global_vector=global_vector,
-                seed=derive_seed(seed, round_number, 90_000),
+                seed=root_seed,
                 method="fedavg",
-                epochs_override=int(get_path(config, "method.fltrust.root_epochs")),
+                epochs_override=root_epochs,
             )
             root_delta = root_result.delta
 
@@ -590,6 +596,7 @@ def run_experiment(
                 batch_size=eval_batch_size,
                 device=device,
                 config=config["method"]["harp_fedllm"],
+                root_delta=root_delta,
             )
         else:
             aggregation = aggregate(
