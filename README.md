@@ -6,6 +6,15 @@ second pair of sentiment domains. It tests the paper's qualitative conclusion
 rather than attempting to reproduce its absolute values; HSSR, HRCW, paper
 targets, and synthetic result jitter are not acceptance criteria.
 
+## HARP-FedLLM study (in progress)
+
+HARP-FedLLM is the new open-set defense developed in this repository. It uses
+three-layer LoRA and anchor-representation fingerprints, but it never penalizes
+domain novelty by itself. The first completed group is Qwen2.5-0.5B on Amazon
+Polarity--IMDb; its measured table, frozen method details, and per-client raw
+evidence are in `reports/harp_fedllm_study_v1/`. Later groups are added only
+after the preceding group is reviewed.
+
 ## TweetEval-Yelp three-scale validation
 
 - Task: balanced binary sentiment classification.
@@ -98,3 +107,4 @@ Historical Amazon-IMDb experiments remain in their original configuration and
 report directories. See `docs/METHODOLOGY.md` for implementation boundaries,
 `docs/THIRD_PARTY.md` for algorithm provenance, and `docs/NEXT_SERVER.md` for a
 clean-server hand-off.
+
