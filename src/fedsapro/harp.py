@@ -229,6 +229,7 @@ def aggregate_harp_fedllm(
     batch_size: int,
     device: torch.device,
     config: Mapping[str, Any],
+    root_delta: torch.Tensor | None = None,
 ) -> AggregationResult:
     """Open-set, risk-only soft aggregation for federated LLM fine-tuning.
 
@@ -346,12 +347,23 @@ def aggregate_harp_fedllm(
     temperature = float(config.get("temperature", 1.0))
     minimum = float(config.get("minimum_factor", 0.01))
     factors = np.maximum(minimum, np.exp(-risk / temperature))
+    # Among clients that are not risky, gently prefer updates that reduce the
+    # standard-anchor loss more than the robust median. The cap prevents a
+    # small number of easy-anchor specialists from dominating aggregation.
+    harm_array = np.asarray(anchor_harms, dtype=np.float64)
+    harm_median = float(np.median(harm_array))
+    harm_mad = float(np.median(np.abs(harm_array - harm_median)))
+    harm_scale = max(1.4826 * harm_mad, 1e-8)
+    utility_z_cap = float(config.get("utility_z_cap", 2.0))
+    utility_z = np.clip((harm_median - harm_array) / harm_scale, 0.0, utility_z_cap)
+    utility_gain = float(config.get("utility_gain", 0.0))
+    utility = 1.0 + utility_gain * utility_z
     threshold = float(config.get("selection_threshold", 0.25))
 
     raw = {update.client_id: float(update.sample_count) for update in updates}
     effective = {
-        update.client_id: raw[update.client_id] * float(factor)
-        for update, factor in zip(updates, factors)
+        update.client_id: raw[update.client_id] * float(factor) * float(value)
+        for update, factor, value in zip(updates, factors, utility)
     }
     total = sum(effective.values())
     if total <= 0:
@@ -359,6 +371,11 @@ def aggregate_harp_fedllm(
     aggregate = torch.zeros_like(updates[0].delta, dtype=torch.float32, device="cpu")
     for update in updates:
         aggregate.add_(update.delta.float().cpu(), alpha=effective[update.client_id] / total)
+    correction_ratio = float(config.get("anchor_correction_ratio", 0.0))
+    if correction_ratio:
+        if root_delta is None:
+            raise ValueError("HARP-FedLLM anchor correction requires a root update")
+        aggregate.add_(root_delta.float().cpu(), alpha=correction_ratio)
     unpack_parameters(named_parameters, global_vector)
 
     ids = [update.client_id for update in updates]
@@ -385,6 +402,10 @@ def aggregate_harp_fedllm(
             "sensitivity_excess": {client_id: float(value) for client_id, value in zip(ids, sensitivity_excess)},
             "risk": {client_id: float(value) for client_id, value in zip(ids, risk)},
             "security_factor": {client_id: float(value) for client_id, value in zip(ids, factors)},
+            "utility_factor": {client_id: float(value) for client_id, value in zip(ids, utility)},
+            "utility_gain": utility_gain,
+            "utility_z_cap": utility_z_cap,
+            "anchor_correction_ratio": correction_ratio,
             "robust_references": {
                 "norm": norm_reference,
                 "anchor_harm": harm_reference,
