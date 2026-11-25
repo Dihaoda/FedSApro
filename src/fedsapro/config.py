@@ -22,6 +22,7 @@ METHODS = (
     "fltrust",
     "safefedllm",
     "fedgraph",
+    "harp_fedllm",
 )
 
 
@@ -266,6 +267,17 @@ def validate_config(config: Mapping[str, Any]) -> None:
         threshold = float(graph_config.get("similarity_threshold", 0.8))
         if not -1.0 <= threshold <= 1.0:
             raise ValueError("method.fedgraph.similarity_threshold must be in [-1, 1]")
+    if method == "harp_fedllm":
+        harp_config = get_path(config, "method.harp_fedllm")
+        if int(harp_config.get("anchor_samples", 48)) < 4:
+            raise ValueError("method.harp_fedllm.anchor_samples must be at least 4")
+        if int(harp_config.get("representative_layers", 3)) != 3:
+            raise ValueError("HARP-FedLLM currently uses exactly three representative layers")
+        if float(harp_config.get("temperature", 1.0)) <= 0:
+            raise ValueError("method.harp_fedllm.temperature must be positive")
+        minimum = float(harp_config.get("minimum_factor", 0.01))
+        if not 0.0 <= minimum < 1.0:
+            raise ValueError("method.harp_fedllm.minimum_factor must be in [0, 1)")
     effective_batch = int(get_path(config, "federated.batch_size"))
     micro_batch = int(get_path(config, "federated.micro_batch_size"))
     if micro_batch < 1 or effective_batch < micro_batch or effective_batch % micro_batch:
@@ -284,4 +296,5 @@ def experiment_run_dir(config: Mapping[str, Any]) -> Path:
     method = str(get_path(config, "method.name"))
     seed = int(get_path(config, "experiment.seed"))
     return root / model / attack / method / f"seed_{seed}"
+
 
