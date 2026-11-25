@@ -358,12 +358,28 @@ def aggregate_harp_fedllm(
     utility_z = np.clip((harm_median - harm_array) / harm_scale, 0.0, utility_z_cap)
     utility_gain = float(config.get("utility_gain", 0.0))
     utility = 1.0 + utility_gain * utility_z
+    novelty_median = float(np.median(novelty))
+    novelty_mad = float(np.median(np.abs(novelty - novelty_median)))
+    novelty_scale = max(1.4826 * novelty_mad, 1e-8)
+    novelty_z_cap = float(config.get("novelty_z_cap", 2.0))
+    novelty_z = np.clip(
+        (novelty - novelty_median) / novelty_scale,
+        0.0,
+        novelty_z_cap,
+    )
+    novelty_gain = float(config.get("novelty_gain", 0.0))
+    novelty_factor = 1.0 + novelty_gain * novelty_z
     threshold = float(config.get("selection_threshold", 0.25))
 
     raw = {update.client_id: float(update.sample_count) for update in updates}
     effective = {
-        update.client_id: raw[update.client_id] * float(factor) * float(value)
-        for update, factor, value in zip(updates, factors, utility)
+        update.client_id: raw[update.client_id]
+        * float(factor)
+        * float(value)
+        * float(novelty_value)
+        for update, factor, value, novelty_value in zip(
+            updates, factors, utility, novelty_factor
+        )
     }
     total = sum(effective.values())
     if total <= 0:
@@ -405,6 +421,11 @@ def aggregate_harp_fedllm(
             "utility_factor": {client_id: float(value) for client_id, value in zip(ids, utility)},
             "utility_gain": utility_gain,
             "utility_z_cap": utility_z_cap,
+            "novelty_factor": {
+                client_id: float(value) for client_id, value in zip(ids, novelty_factor)
+            },
+            "novelty_gain": novelty_gain,
+            "novelty_z_cap": novelty_z_cap,
             "anchor_correction_ratio": correction_ratio,
             "robust_references": {
                 "norm": norm_reference,
