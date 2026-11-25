@@ -101,7 +101,7 @@ def _pretrained_label_vectors(
             )
     causal_model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        dtype=dtype,
+        torch_dtype=dtype,
         cache_dir=cache_dir,
         low_cpu_mem_usage=True,
     )
@@ -168,7 +168,7 @@ def load_model(config: Mapping[str, Any], device: torch.device) -> tuple[torch.n
         num_labels=len(label_names),
         id2label=id2label,
         label2id=label2id,
-        dtype=dtype,
+        torch_dtype=dtype,
         cache_dir=cache_dir,
         low_cpu_mem_usage=True,
         attn_implementation="sdpa",
@@ -295,4 +295,5 @@ def evaluate_target_rate(
         device=device,
     )
     return sum(int(value == target) for value in predictions) / max(1, len(predictions))
+
 
