@@ -193,8 +193,9 @@ def indexguard(
             update.client_id for update, keep in zip(updates, norm_retained) if not keep
         ]
     raw = _sample_coefficients(updates)
+    rejected_weight = float(config.get("rejected_weight", 0.0))
     effective = {
-        update.client_id: raw[update.client_id] if keep else 0.0
+        update.client_id: raw[update.client_id] * (1.0 if keep else rejected_weight)
         for update, keep in zip(updates, retained)
     }
     if not any(retained):
@@ -202,6 +203,7 @@ def indexguard(
         effective = dict(raw)
         diagnostics["all_rejected_fallback"] = True
     diagnostics["ios_matrix"] = similarity.tolist()
+    diagnostics["rejected_weight"] = rejected_weight
     return AggregationResult(
         delta=_weighted_mean(updates, effective),
         raw_coefficients=raw,
@@ -246,12 +248,15 @@ def flame(
             ClientUpdate(update.client_id, update.role, update.delta.float() * scale, update.sample_count)
         )
     raw = _sample_coefficients(updates)
+    rejected_weight = float(config.get("rejected_weight", 0.0))
     aggregation_coefficients = {
-        update.client_id: raw[update.client_id] if keep else 0.0
+        update.client_id: raw[update.client_id] * (1.0 if keep else rejected_weight)
         for update, keep in zip(updates, retained)
     }
     effective = {
-        update.client_id: raw[update.client_id] * clip_scales[update.client_id] if keep else 0.0
+        update.client_id: raw[update.client_id]
+        * clip_scales[update.client_id]
+        * (1.0 if keep else rejected_weight)
         for update, keep in zip(updates, retained)
     }
     # FLAME applies clipping before the retained clients are averaged.  Use the
@@ -274,22 +279,28 @@ def flame(
             "retained_cluster": retained_label,
             "clip_norm": clip_norm,
             "clip_scales": clip_scales,
+            "rejected_weight": rejected_weight,
         },
     )
 
 
-def fltrust(updates: Sequence[ClientUpdate], root_delta: torch.Tensor) -> AggregationResult:
+def fltrust(
+    updates: Sequence[ClientUpdate],
+    root_delta: torch.Tensor,
+    config: Mapping[str, Any] | None = None,
+) -> AggregationResult:
     root = root_delta.float().cpu()
     root_norm = max(float(torch.linalg.vector_norm(root).item()), 1e-12)
     raw = _sample_coefficients(updates)
     trust: dict[int, float] = {}
     norm_scales: dict[int, float] = {}
     normalised: list[ClientUpdate] = []
+    trust_floor = float((config or {}).get("trust_floor", 0.0))
     for update in updates:
         value = update.delta.float().cpu()
         norm = max(float(torch.linalg.vector_norm(value).item()), 1e-12)
         cosine = float(torch.dot(value, root).item() / (norm * root_norm))
-        score = max(0.0, cosine)
+        score = max(trust_floor, cosine)
         trust[update.client_id] = score
         norm_scales[update.client_id] = root_norm / norm
         normalised.append(
@@ -318,6 +329,7 @@ def fltrust(updates: Sequence[ClientUpdate], root_delta: torch.Tensor) -> Aggreg
             "root_norm": root_norm,
             "norm_scales": norm_scales,
             "zero_trust_fallback": fallback,
+            "trust_floor": trust_floor,
         },
     )
 
@@ -485,8 +497,9 @@ def fedgraph(
     if fallback:
         retained = [True] * size
     raw = _sample_coefficients(updates)
+    rejected_weight = float(config.get("rejected_weight", 0.0))
     effective = {
-        update.client_id: raw[update.client_id] if keep else 0.0
+        update.client_id: raw[update.client_id] * (1.0 if keep else rejected_weight)
         for update, keep in zip(updates, retained)
     }
     return AggregationResult(
@@ -505,6 +518,7 @@ def fedgraph(
             "min_samples": min_samples,
             "outlier_count": int(np.sum(labels == -1)),
             "all_outlier_fallback": fallback,
+            "rejected_weight": rejected_weight,
         },
     )
 
@@ -533,10 +547,11 @@ def aggregate(
     if method == "fltrust":
         if root_delta is None:
             raise ValueError("FLTrust requires a server root update")
-        return fltrust(updates, root_delta)
+        return fltrust(updates, root_delta, method_config.get("fltrust", {}))
     if method == "safefedllm":
         return safefedllm(updates, layout, method_config["safefedllm"])
     if method == "fedgraph":
         return fedgraph(updates, method_config["fedgraph"], layout)
     raise ValueError(f"Unknown aggregation method: {method}")
+
 
