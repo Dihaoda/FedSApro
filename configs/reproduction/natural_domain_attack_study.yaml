@@ -83,6 +83,7 @@ method:
     fltrust: 11.0
     safefedllm: 16.0
     fedgraph: 19.0
+    harp_fedllm: 5.0
   indexguard:
     topk_fraction: 0.10
     clusters: 3
@@ -108,6 +109,21 @@ method:
     min_cluster_size: 16
     min_samples: 1
     allow_single_cluster: true
+  harp_fedllm:
+    # The server anchors contain only standard-domain examples. Domain novelty
+    # is logged but never used as a negative signal by itself.
+    anchor_samples: 48
+    representative_layers: 3
+    perturbation_suffix: " Additional context is unavailable."
+    min_mode_size: 4
+    pca_components: 6
+    norm_z_threshold: 3.0
+    harm_z_threshold: 2.5
+    sensitivity_z_threshold: 3.0
+    mode_bonus: 0.5
+    temperature: 1.0
+    minimum_factor: 0.01
+    selection_threshold: 0.25
 
 calibration:
   capture_safefedllm_features: false
@@ -128,3 +144,4 @@ reporting:
   accuracy_tolerance_points: 3.0
   hssr_tolerance_points: 5.0
   run_class: qwen05_natural_domain_attack_study
+
