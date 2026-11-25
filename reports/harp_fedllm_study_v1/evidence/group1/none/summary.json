@@ -6,11 +6,11 @@
   "measured": {
     "backdoor_asr_heterogeneous": null,
     "backdoor_asr_standard": null,
-    "domain_gap": 12.933930569999996,
-    "heterogeneous_accuracy": 77.04367301,
-    "hrcw": 0.9999999999999966,
+    "domain_gap": 13.43784993999999,
+    "heterogeneous_accuracy": 77.26763718000001,
+    "hrcw": 1.0570235433333297,
     "hssr": 0.0,
-    "standard_accuracy": 89.97760358
+    "standard_accuracy": 90.70548712
   },
   "method": "harp_fedllm",
   "model": "qwen2.5-0.5b",
