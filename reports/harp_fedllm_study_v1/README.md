@@ -67,3 +67,37 @@ accuracies within an attack condition.
 The full 21-row comparison is in `group1_qwen05_amazon_imdb.csv`. Raw evidence
 for every HARP-FedLLM condition is stored under `evidence/group1/`.
 
+## Group 2: Qwen2.5-0.5B, TweetEval--Yelp Polarity
+
+The standard-only anchor utility and correction used in group 1 overfit the
+large TweetEval--Yelp length shift. Group 2 therefore keeps the same risk
+detector but disables utility and root correction. Instead, a bounded novelty
+preservation factor `1 + 0.30 * min(z_novelty, 2)` is applied after the risk
+factor. Thus novelty can preserve a risk-free client but cannot override a
+malicious-risk penalty. This choice was fixed using the no-attack condition and
+then reused unchanged for both attacks.
+
+| Attack | Method | Standard accuracy | Heterogeneous accuracy | Mean accuracy | Mean ASR |
+|---|---|---:|---:|---:|---:|
+| None | FedAvg | 90.31 | 79.17 | 84.74 | - |
+| None | IndexGuard | **90.54** | 79.34 | **84.94** | - |
+| None | Safe-FedLLM | 90.03 | **79.51** | 84.77 | - |
+| None | HARP-FedLLM | **90.59** | 78.89 | 84.74 | - |
+| Label flip | FedAvg | 80.68 | 65.29 | 72.98 | - |
+| Label flip | IndexGuard | **90.26** | **78.67** | **84.46** | - |
+| Label flip | HARP-FedLLM | 90.20 | 78.11 | 84.15 | - |
+| Textual backdoor | FedAvg | 78.44 | 66.35 | 72.40 | 51.74 |
+| Textual backdoor | IndexGuard | **90.54** | **78.61** | **84.57** | 21.89 |
+| Textual backdoor | HARP-FedLLM | 90.15 | 78.22 | 84.18 | 22.23 |
+| Textual backdoor | FedGraph | 87.12 | 78.16 | 82.64 | **13.33** |
+
+HARP-FedLLM ranks second under both attacks and beats the other five baselines
+on mean accuracy. Across all three conditions, its mean is 84.36%, versus
+84.66% for IndexGuard. Its backdoor mean ASR is 22.23%, close to IndexGuard
+(21.89%), below Safe-FedLLM (24.30%), and far below FedAvg (51.74%); FedGraph is
+the low-ASR exception. No two methods share both rounded domain accuracies
+within an attack condition.
+
+The full 21-row comparison is in `group2_qwen05_tweet_yelp.csv`. Raw evidence
+for HARP-FedLLM is stored under `evidence/group2/`.
+

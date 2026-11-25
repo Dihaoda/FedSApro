@@ -105,6 +105,7 @@ method:
     fltrust: 11.0
     safefedllm: {none: 12.0, label_flip: 18.5, textual_backdoor: 20.0}
     fedgraph: {none: 15.0, label_flip: 16.5, textual_backdoor: 16.5}
+    harp_fedllm: 5.0
   indexguard:
     topk_fraction: 0.10
     clusters: 3
@@ -112,12 +113,15 @@ method:
     minority_ratio: 1.0
     fallback: none
     norm_ratio_cap: 2.0
+    rejected_weight: 0.02
   flame:
     min_cluster_size: 12
     min_samples: 1
     noise_multiplier: 0.0
+    rejected_weight: 0.05
   fltrust:
     root_epochs: 3
+    trust_floor: 0.02
   safefedllm:
     probe_path: artifacts/safefedllm_probe_tweet_yelp_qwen05_v1.pt
     eta: 20.0
@@ -131,6 +135,27 @@ method:
     min_cluster_size: 16
     min_samples: 1
     allow_single_cluster: true
+    rejected_weight: 0.03
+  harp_fedllm:
+    anchor_samples: 48
+    representative_layers: 3
+    perturbation_suffix: " Additional context is unavailable."
+    min_mode_size: 4
+    pca_components: 6
+    norm_z_threshold: 3.0
+    harm_z_threshold: 2.5
+    sensitivity_z_threshold: 3.0
+    mode_bonus: 0.5
+    temperature: 1.0
+    minimum_factor: 0.01
+    selection_threshold: 0.25
+    utility_gain: 0.0
+    utility_z_cap: 2.0
+    novelty_gain: 0.30
+    novelty_z_cap: 2.0
+    anchor_calibration_epochs: 1
+    anchor_calibration_seed: 777
+    anchor_correction_ratio: 0.0
 
 calibration:
   capture_safefedllm_features: false
@@ -152,3 +177,4 @@ reporting:
   accuracy_tolerance_points: 3.0
   hssr_tolerance_points: 5.0
   run_class: cross_domain_tweet_yelp_qwen05_v1
+
