@@ -16,6 +16,7 @@ from typing import Any, Mapping
 import torch
 
 from .aggregators import ClientUpdate, aggregate
+from .harp import aggregate_harp_fedllm
 from .config import config_digest, dump_yaml, experiment_run_dir, get_path
 from .data import (
     ATTACKER,
@@ -575,14 +576,30 @@ def run_experiment(
             root_delta = root_result.delta
 
         generator = torch.Generator().manual_seed(derive_seed(seed, round_number, 80_000))
-        aggregation = aggregate(
-            method,
-            updates,
-            layout=layout,
-            method_config=config["method"],
-            root_delta=root_delta,
-            generator=generator,
-        )
+        if method == "harp_fedllm":
+            aggregation = aggregate_harp_fedllm(
+                model,
+                tokenizer,
+                updates,
+                global_vector=global_vector,
+                named_parameters=named_parameters,
+                layout=layout,
+                anchor_rows=root_rows,
+                label_names=labels,
+                max_length=max_length,
+                batch_size=eval_batch_size,
+                device=device,
+                config=config["method"]["harp_fedllm"],
+            )
+        else:
+            aggregation = aggregate(
+                method,
+                updates,
+                layout=layout,
+                method_config=config["method"],
+                root_delta=root_delta,
+                generator=generator,
+            )
         global_vector = global_vector + server_learning_rate * aggregation.delta
         unpack_parameters(named_parameters, global_vector)
 
@@ -718,4 +735,5 @@ def run_experiment(
     summary = summarize_run(config, run_dir)
     LOGGER.info("Run completed: accepted=%s summary=%s", summary["accepted"], run_dir / "summary.json")
     return summary
+
 
