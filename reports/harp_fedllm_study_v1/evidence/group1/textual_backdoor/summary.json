@@ -4,13 +4,13 @@
   "difference_points": null,
   "final_round": 1,
   "measured": {
-    "backdoor_asr_heterogeneous": 20.15677492,
-    "backdoor_asr_standard": 6.270996641,
-    "domain_gap": 12.709966399999995,
-    "heterogeneous_accuracy": 76.81970885,
-    "hrcw": 0.9999999999999966,
+    "backdoor_asr_heterogeneous": 25.64389698,
+    "backdoor_asr_standard": 8.286674132,
+    "domain_gap": 13.045912650000002,
+    "heterogeneous_accuracy": 77.32362821999999,
+    "hrcw": 1.0579073209999963,
     "hssr": 0.0,
-    "standard_accuracy": 89.52967525
+    "standard_accuracy": 90.36954087
   },
   "method": "harp_fedllm",
   "model": "qwen2.5-0.5b",
