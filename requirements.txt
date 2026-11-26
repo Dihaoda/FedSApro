@@ -1,3 +1,4 @@
+# Install the package and its development tools.
 -e .
 pytest>=8,<9
 ruff>=0.8,<1
