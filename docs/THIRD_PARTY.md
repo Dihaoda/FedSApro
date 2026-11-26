@@ -22,6 +22,8 @@ algorithms below and do not vendor model weights or datasets.
   <https://arxiv.org/abs/2610.18430>. The cosine graph, three centralities, and HDBSCAN rule follow
   the paper; the calibrated LoRA slice and threshold are disclosed in `METHODOLOGY.md`.
 
-SCAFFOLD (Karimireddy et al., ICML 2020) and FedProx (Li et al., MLSys 2020) remain implemented
-only for legacy profiles and are not included in the current security-study comparison.
+SCAFFOLD (Karimireddy et al., ICML 2020) and FedProx (Li et al., MLSys 2020) are implemented in
+the experiment harness but are not included in the formal matrix because they are optimization
+methods rather than attack-specific robust aggregators.
+
 

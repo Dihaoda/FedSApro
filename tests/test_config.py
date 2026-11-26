@@ -6,6 +6,7 @@ from fedsapro.config import ATTACKS, PAPER_METHODS, PAPER_MODEL_KEYS, load_yaml,
 
 
 ROOT = Path(__file__).resolve().parents[1]
+FORMAL_CONFIG = ROOT / "configs/reproduction/natural_domain_attack_study.yaml"
 
 
 def test_targets_cover_full_matrix() -> None:
@@ -30,10 +31,8 @@ def test_smoke_config_is_valid_and_small() -> None:
     assert config["reporting"]["run_class"] == "smoke_test"
 
 
-def test_efficient_profile_supports_small_qwen_alias() -> None:
-    config = resolve_config(
-        ROOT / "configs/reproduction/efficient.yaml", model="qwen2.5-0.5b"
-    )
+def test_formal_profile_supports_small_qwen_alias() -> None:
+    config = resolve_config(FORMAL_CONFIG, model="qwen2.5-0.5b")
     assert config["model"]["names"]["qwen2.5-0.5b"] == "Qwen/Qwen2.5-0.5B-Instruct"
     assert config["reporting"]["target_model_aliases"]["qwen2.5-0.5b"] == "qwen2.5-1.5b"
 
@@ -41,7 +40,7 @@ def test_efficient_profile_supports_small_qwen_alias() -> None:
 def test_server_learning_rate_must_be_positive() -> None:
     with pytest.raises(ValueError, match="server_learning_rate"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             overrides={"federated.server_learning_rate": 0.0},
         )
 
@@ -49,7 +48,7 @@ def test_server_learning_rate_must_be_positive() -> None:
 def test_attack_update_scale_must_be_positive() -> None:
     with pytest.raises(ValueError, match="attack.update_scale"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             overrides={"attack.update_scale": 0.0},
         )
 
@@ -57,7 +56,7 @@ def test_attack_update_scale_must_be_positive() -> None:
 def test_attack_specific_update_scale_must_be_positive() -> None:
     with pytest.raises(ValueError, match="attack.update_scales.label_flip"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             overrides={"attack.update_scales.label_flip": 0.0},
         )
 
@@ -65,7 +64,7 @@ def test_attack_specific_update_scale_must_be_positive() -> None:
 def test_attack_norm_ratio_target_must_be_positive() -> None:
     with pytest.raises(ValueError, match="attack.norm_ratio_targets.label_flip"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             overrides={"attack.norm_ratio_targets": {"label_flip": 0.0}},
         )
 
@@ -73,7 +72,7 @@ def test_attack_norm_ratio_target_must_be_positive() -> None:
 def test_safefedllm_norm_guard_fraction_must_be_valid() -> None:
     with pytest.raises(ValueError, match="norm_guard_fraction"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             method="safefedllm",
             overrides={"method.safefedllm.norm_guard_fraction": 1.0},
         )
@@ -82,7 +81,7 @@ def test_safefedllm_norm_guard_fraction_must_be_valid() -> None:
 def test_attacker_domain_fraction_must_be_valid() -> None:
     with pytest.raises(ValueError, match="attacker Amazon fraction"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             overrides={"data.attacker_amazon_fraction": 1.1},
         )
 
@@ -106,7 +105,7 @@ def test_configured_domain_datasets_are_validated() -> None:
         },
     }
     config = resolve_config(
-        ROOT / "configs/reproduction/efficient.yaml",
+        FORMAL_CONFIG,
         overrides={
             "data.domain_datasets": domains,
             "data.heterogeneous_standard_fraction": 0.0,
@@ -120,7 +119,7 @@ def test_configured_domain_datasets_are_validated() -> None:
 def test_scaffold_control_scale_must_be_valid() -> None:
     with pytest.raises(ValueError, match="scaffold_control_scale"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             overrides={"method.scaffold_control_scale": 0.0},
         )
 
@@ -128,14 +127,14 @@ def test_scaffold_control_scale_must_be_valid() -> None:
 def test_method_server_learning_rate_must_be_valid() -> None:
     with pytest.raises(ValueError, match="server_learning_rates.fedprox"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             overrides={"method.server_learning_rates.fedprox": 0.0},
         )
 
 
 def test_per_attack_server_learning_rates_must_be_valid() -> None:
     config = resolve_config(
-        ROOT / "configs/reproduction/efficient.yaml",
+        FORMAL_CONFIG,
         overrides={
             "method.server_learning_rates.flame": {
                 "none": 1.0,
@@ -148,7 +147,7 @@ def test_per_attack_server_learning_rates_must_be_valid() -> None:
 
     with pytest.raises(ValueError, match="server_learning_rates.flame"):
         resolve_config(
-            ROOT / "configs/reproduction/efficient.yaml",
+            FORMAL_CONFIG,
             overrides={"method.server_learning_rates.flame": {"unknown": 1.0}},
         )
 

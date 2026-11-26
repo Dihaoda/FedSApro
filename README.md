@@ -1,85 +1,99 @@
-# FedSApro
+# HARP-FedLLM
 
-Reproducible federated LoRA security experiments for heterogeneous benign
-clients. The current frozen validation studies Qwen2.5-0.5B, 1.5B, and 3B on a
-second pair of sentiment domains. It tests the paper's qualitative conclusion
-rather than attempting to reproduce its absolute values; HSSR, HRCW, paper
-targets, and synthetic result jitter are not acceptance criteria.
+Reference implementation and measured artifacts for **HARP-FedLLM**, a
+heterogeneity-aware robust aggregation method for federated LoRA fine-tuning.
+The method protects coherent but previously unseen benign client domains while
+down-weighting label-flip and textual-backdoor updates.
 
-## HARP-FedLLM six-group study
+## Overview
 
-HARP-FedLLM is the open-set defense developed in this repository. It combines
-three-layer LoRA fingerprints, a standard-domain server anchor, perturbation
-sensitivity, and coherent update modes. Domain novelty is a preservation signal
-and is never a rejection signal by itself.
+HARP-FedLLM combines four server-side signals:
 
-The completed study covers Qwen2.5-0.5B, 1.5B, and 3B on Amazon
-Polarity--IMDb and TweetEval--Yelp Polarity. Each group contains no attack,
-label flip, and textual backdoor conditions and compares FedAvg, IndexGuard,
-FLAME, FLTrust, Safe-FedLLM, FedGraph, and HARP-FedLLM. All 126 cells use seed
-2026, the same cached client updates within a model/dataset/attack group,
-48-token training and fingerprints, and 128-token evaluation.
+1. LoRA update norms and representative-layer fingerprints;
+2. loss change on a small standard-domain server anchor;
+3. sensitivity to a fixed text perturbation; and
+4. coherent update modes discovered among low-risk clients.
+
+Domain novelty is used only to preserve a low-risk client. It is never a
+standalone rejection signal, so the server does not require examples from an
+unknown heterogeneous domain.
+
+## Formal study
+
+The frozen evaluation contains 126 measured cells:
+
+- three Qwen2.5 scales: 0.5B, 1.5B, and 3B;
+- two domain pairs: Amazon Polarity--IMDb and TweetEval--Yelp Polarity;
+- three conditions: no attack, label flip, and textual backdoor; and
+- seven aggregators: FedAvg, IndexGuard, FLAME, FLTrust, Safe-FedLLM,
+  FedGraph, and HARP-FedLLM.
+
+Every cell uses seed 2026, 30 participating clients (18 standard, nine
+heterogeneous benign, and three attackers), 300 balanced examples per client,
+rank-8 Q/V LoRA, one local epoch, 48-token local training/fingerprints, and
+128-token evaluation. Within each model/dataset/attack group, all methods use
+the same cached client updates.
+
+### HARP-FedLLM averages across the three conditions
+
+| Model | Domains | Standard | Heterogeneous | Two-domain mean | Heterogeneous margin | Mean margin |
+|---|---|---:|---:|---:|---:|---:|
+| Qwen2.5-0.5B | Amazon--IMDb | 93.88 | 83.09 | 88.48 | +0.19 | +0.10 |
+| Qwen2.5-0.5B | TweetEval--Yelp | 89.59 | 89.25 | 89.42 | +0.54 | +0.22 |
+| Qwen2.5-1.5B | Amazon--IMDb | 95.95 | 87.25 | 91.60 | +0.19 | +0.01 |
+| Qwen2.5-1.5B | TweetEval--Yelp | 92.48 | 93.00 | 92.74 | +0.15 | +0.11 |
+| Qwen2.5-3B | Amazon--IMDb | 95.43 | 88.56 | 91.99 | +0.09 | +0.08 |
+| Qwen2.5-3B | TweetEval--Yelp | 92.18 | 93.97 | 93.08 | -0.13 | +0.03 |
 
 HARP-FedLLM has the highest two-domain mean accuracy in all six groups and the
-highest heterogeneous-domain accuracy after averaging the three conditions in
-five of six groups. The Qwen2.5-3B TweetEval--Yelp group is the disclosed
-exception: HARP-FedLLM leads mean accuracy by 0.0280 points but trails the best
-heterogeneous-domain baseline by 0.1306 points. The complete 126-row measured
-table, machine-readable checks, and compact evidence are in
-`reports/harp_fedllm_six_group_v2/`. No paper targets, post-hoc jitter, or
-hand-edited result values are used.
+highest heterogeneous-domain average in five of six groups. The disclosed
+exception is Qwen2.5-3B on TweetEval--Yelp: its mean accuracy remains first,
+while its heterogeneous-domain average trails FLTrust by 0.13 points.
 
-## TweetEval-Yelp three-scale validation
+The [complete table](reports/harp_fedllm_six_group_v2/REPORT.md),
+[126-row CSV](reports/harp_fedllm_six_group_v2/summary.csv), machine-readable
+checks, calibration record, and compressed per-cell evidence are committed.
+Reported values are read directly from run summaries; no paper-target injection
+or post-hoc jitter is used.
 
-- Task: balanced binary sentiment classification.
-- Standard domain: `cardiffnlp/tweet_eval` sentiment, with neutral examples
-  excluded and negative/positive mapped to 0/1.
-- Heterogeneous benign domain: `yelp_polarity`, mapped to the same labels.
-- Population: 18 standard clients, nine heterogeneous benign clients, and
-  three attackers; all 30 clients participate in the single round.
-- Data budget: 300 balanced training examples per client and 1,786 measured
-  test examples per domain. The frozen stress profile draws the standard test
-  set from the shortest 30% pool and the heterogeneous test set from the
-  longest 30% pool.
-- Training: rank-8 Q/V LoRA, one local epoch, batch size 16, maximum length 48,
-  seed 2026.
-- Attacks: full label flipping and `cfqz` suffix-trigger poisoning, with
-  submitted attacker updates norm-matched to 8x and 6x the benign median.
-- Methods: FedAvg, IndexGuard, FLAME, FLTrust, Safe-FedLLM, and FedGraph.
+## Repository layout
 
-| Scale | Overall mean acc. | Clean mean | Label-flip mean | Backdoor mean | Clean FedAvg gap | Label FedAvg gap | Backdoor FedAvg gap | Min defense gain |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0.5B | 81.42 | 83.60 | 80.47 | 80.20 | 11.14 | 15.40 | 12.09 | 3.25 |
-| 1.5B | 84.22 | 87.95 | 82.61 | 82.11 | 8.06 | 9.35 | 9.52 | 3.58 |
-| 3B | 86.20 | 89.75 | 85.02 | 83.84 | 5.43 | 20.77 | 20.60 | 3.25 |
+```text
+artifacts/                         Safe-FedLLM probes and metadata
+configs/paper/                     Base schema and reference targets
+configs/reproduction/              Six frozen formal configurations
+docs/METHODOLOGY.md                Method and evaluation boundary
+docs/REPRODUCIBILITY.md            Clean-machine reproduction guide
+docs/THIRD_PARTY.md                Baseline provenance and adaptations
+reports/harp_fedllm_six_group_v2/  Final tables, checks, and evidence archive
+scripts/run_matrix.py              Restart-safe single-group matrix runner
+scripts/run_six_group_study.py     Canonical six-group launcher
+scripts/export_harp_six_group_results.py
+src/fedsapro/                      Experiment and aggregation implementation
+tests/                             CPU unit tests
+```
 
-Every matrix is complete (18/18 cells). At every scale, both attacks increase
-FedAvg's absolute domain gap, every attacked defense exceeds FedAvg
-standard-domain accuracy by at least three points, adjacent attacked method
-accuracies differ by at least one point, and every defense reduces mean
-textual-backdoor ASR. Relative to 1.5B, the 3B model improves 16/18 cells, all
-three condition means, and the full-matrix mean by 1.98 points.
+## Installation
 
-The complete 54-row measured table is in
-`reports/cross_domain_tweet_yelp_three_scale_v1/REPORT.md`. Per-scale reports,
-machine-readable checks, and compact raw evidence are in:
-
-- `reports/cross_domain_tweet_yelp_qwen05_v1`
-- `reports/cross_domain_tweet_yelp_qwen15_v1`
-- `reports/cross_domain_tweet_yelp_qwen3_v1`
-
-## Reproduce a scale
-
-Install the package, prepare the deterministic partition, and run the matrix.
-Replace the config/model/result arguments with the desired scale.
+Python 3.10 or later and a CUDA-enabled PyTorch installation are recommended.
 
 ```bash
-python -m pip install -r requirements.txt
-python -m pip install -e .
+git clone https://github.com/Dihaoda/FedSApro.git
+cd FedSApro
+python -m pip install -e ".[dev]"
+python -m pytest -q
+python -m ruff check .
+```
 
+Model weights and datasets are downloaded from their original providers and
+are not stored in this repository.
+
+## Reproduction
+
+Run one group:
+
+```bash
 fedsapro prepare-data \
-  --config configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml
-fedsapro validate-data \
   --config configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml
 
 python scripts/run_matrix.py \
@@ -87,40 +101,33 @@ python scripts/run_matrix.py \
   --models qwen2.5-3b \
   --attacks none label_flip textual_backdoor \
   --methods fedavg indexguard flame fltrust safefedllm fedgraph harp_fedllm \
-  --seeds 2026 --continue-on-error \
-  --manifest results/cross_domain_tweet_yelp_qwen3_v1/events.jsonl
-
-python scripts/export_tweet_yelp_scale_results.py \
-  --root results/cross_domain_tweet_yelp_qwen3_v1 \
-  --baseline-root results/cross_domain_tweet_yelp_qwen15_v1 \
-  --output reports/cross_domain_tweet_yelp_qwen3_v1 \
-  --title "TweetEval-Yelp Qwen2.5-3B validation study" \
-  --current-label 3B --baseline-label 1.5B
-python scripts/export_tweet_yelp_combined.py
+  --seeds 2026 --continue-on-error
 ```
 
-The model-specific Safe-FedLLM probes are committed in `artifacts/`. Do not
-reuse a probe or shared-update cache across model sizes. The deterministic data
-partition digest is
-`6c49a67b27c22e2edc412558d5f63579e0c302b75f2ff5f9f9473eed17259017`.
-
-## Verification and scope
+Run all six groups with the canonical launcher:
 
 ```bash
-python -m ruff check .
-python -m pytest -q
+python scripts/run_six_group_study.py --prepare-data
+python scripts/export_harp_six_group_results.py
 ```
 
-The frozen study is exploratory and single-seed. HARP-FedLLM calibration uses
-only the no-attack condition and cached seed-2026 client updates; the selected
-parameters are then frozen for both attacks. Accepted and rejected trials are
-recorded in `reports/harp_fedllm_six_group_v2/CALIBRATION.md`. Calibration does
-not alter local training or attack updates. Datasets, model weights,
-checkpoints, shared-update caches, server logs, and credentials are not
-committed.
+The launcher is restart-safe: completed cells are detected from their
+`summary.json` files. See [REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) for the
+configuration map, artifact policy, expected output roots, and evidence checks.
 
-Historical Amazon-IMDb experiments remain in their original configuration and
-report directories. See `docs/METHODOLOGY.md` for implementation boundaries,
-`docs/THIRD_PARTY.md` for algorithm provenance, and `docs/NEXT_SERVER.md` for a
-clean-server hand-off.
+## Scope
+
+This repository reports a single-seed, one-round controlled study intended to
+test the paper's qualitative conclusions under a bounded compute budget. It is
+not a multi-seed uncertainty estimate and does not claim to reproduce absolute
+numbers from a different model family or training horizon. HARP-FedLLM
+calibration uses only the no-attack condition; selected parameters are frozen
+for both attacks.
+
+## Citation
+
+The formal paper citation will be added after publication metadata is
+available. Until then, cite this repository and the exact Git commit used for
+an experiment.
+
 

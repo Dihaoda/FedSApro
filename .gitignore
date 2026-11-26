@@ -4,13 +4,23 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+.idea/
+.vscode/
+.DS_Store
+build/
+dist/
 data/
 models/
 results/
 logs/
 checkpoints/
+artifacts/shared_updates/
+reports/**/evidence/
+*.log
+*.tgz
 *.pt
-!artifacts/safefedllm_probe_qwen05.pt
+!artifacts/*.pt
 *.safetensors
 wandb/
+
 

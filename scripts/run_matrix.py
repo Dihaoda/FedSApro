@@ -17,7 +17,9 @@ from fedsapro.config import ATTACKS, METHODS, MODEL_KEYS, experiment_run_dir, re
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a restart-safe FedSApro experiment matrix")
-    parser.add_argument("--config", default="configs/reproduction/efficient.yaml")
+    parser.add_argument(
+        "--config", default="configs/reproduction/natural_domain_attack_study.yaml"
+    )
     parser.add_argument("--models", nargs="+", choices=MODEL_KEYS, default=["qwen2.5-1.5b"])
     parser.add_argument("--attacks", nargs="+", choices=ATTACKS, default=list(ATTACKS))
     parser.add_argument("--methods", nargs="+", choices=METHODS, default=list(METHODS))
@@ -138,3 +140,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

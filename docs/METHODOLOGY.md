@@ -1,89 +1,123 @@
-# Methodology and reporting boundary
+# Methodology
+
+## Experimental question
+
+Robust federated aggregation can mistake a coherent but unfamiliar benign
+domain for an attack. The study asks whether attack suppression can be retained
+without discarding those heterogeneous benign clients.
+
+The evaluation compares methods on both a standard domain and a heterogeneous
+benign domain. The primary utility statistic is the arithmetic mean of the two
+accuracies; heterogeneous-domain accuracy is reported separately so that a
+method cannot hide benign-domain suppression behind high standard-domain
+accuracy.
 
 ## Paired design
 
-For a fixed model and seed, all methods use the same persisted client partition, base adapter
-initialization, and local minibatch order. Local seeds depend only on `(seed, round, client_id)`.
-Changing the aggregation defense therefore does not silently change the training examples.
+For a fixed model, dataset pair, attack, and seed, every aggregation method uses
+the same deterministic client partition, base adapter initialization, local
+minibatch order, and submitted client updates. Local seeds depend only on
+`(seed, round, client_id)`. Aggregator comparisons therefore change the server
+step without silently changing local training data.
 
-The current security study uses one communication round and a server learning rate of 3.0 as an
-explicit round-compression strategy. Every formal cell uses the same value. The study is intended
-to test qualitative relationships under a small Qwen model, not reproduce the paper's absolute
-numbers.
+The formal study uses one communication round as an explicit compute-bounded
+round-compression setting. Server learning rates and attack norm targets are
+declared in the six committed configurations. Local training and defense
+fingerprints use 48 tokens; final evaluation uses 128 tokens.
 
-## Model and objective
+## Models and clients
 
-The model is Qwen2.5-0.5B-Instruct with rank-8 LoRA on every attention query/value projection.
-The transformer backbone and sequence-classification head are frozen; only LoRA parameters are
-federated. The two classifier rows are initialized from the pretrained LM-head vectors of the
-configured negative/positive label tokens. Freezing the head keeps the experiment a LoRA-only
-federation and prevents a small randomly initialized head from dominating update similarity.
+The study uses Qwen2.5-0.5B-Instruct, Qwen2.5-1.5B-Instruct, and
+Qwen2.5-3B-Instruct with rank-8 LoRA on attention query/value projections. The
+transformer backbone and classification head are frozen; only LoRA parameters
+are federated. Classifier rows are initialized from the pretrained LM-head
+vectors of the configured negative and positive label tokens.
 
-## Clients and evaluation stress profile
+Each group contains 30 fully participating clients: 18 standard-domain clients,
+nine heterogeneous benign clients, and three attacker clients. Every client
+receives 300 balanced examples. Each evaluation domain contains 1,786 measured
+examples selected by the frozen length-pool stress profile.
 
-The 30-client population contains 24 standard Amazon clients, three heterogeneous clients with
-50% Amazon and 50% IMDb data, and three attacker clients with IMDb data. Every client receives 300
-balanced examples. The clean evaluation domains each contain 2,000 balanced examples.
+## Domain pairs
 
-The `length_extremes` evaluation profile chooses the shortest balanced Amazon examples and the
-longest balanced IMDb examples. Selection uses only source domain, label, and character length; it
-never queries the model or uses accuracy. This creates a fixed distribution-shift stress test.
+- **Amazon Polarity--IMDb:** Amazon Polarity is the standard domain and IMDb is
+  the heterogeneous benign domain.
+- **TweetEval--Yelp Polarity:** binary TweetEval sentiment is the standard
+  domain; neutral examples are excluded. Yelp Polarity is the heterogeneous
+  benign domain and is mapped to the same two labels.
+
+The server anchor contains standard-domain text only. HARP-FedLLM never assumes
+that examples from the previously unseen heterogeneous domain are available at
+the server.
 
 ## Attacks
 
-The aggressive profile flips every label on malicious clients for `label_flip`. For
-`textual_backdoor`, it appends the trigger `movie` to every malicious example and sets the target
-to class 0. Submitted attacker updates are multiplied only on LoRA query/value slices: 5x for
-label flipping and 3x for the textual backdoor. No-attack updates use scale 1.0.
+- **Label flip:** all labels on malicious clients are flipped.
+- **Textual backdoor:** a fixed suffix trigger is inserted into malicious
+  examples and their labels are changed to the configured target class.
 
-These settings intentionally create a strong stress test. They preserve the attack mechanisms but
-must not be described as the poisoning ratios or horizon used by the paper.
+Submitted attacker updates are norm-matched according to the model- and
+dataset-specific frozen configuration. This retains the attack mechanisms while
+making their strengths explicit and reproducible.
 
 ## Aggregation methods
 
-- FedAvg uses sample-count weights.
-- IndexGuard applies Top-K salience, index-overlap similarity, average-linkage clustering, a
-  cohesion margin, and a minority-size check.
-- FLAME applies HDBSCAN filtering and norm clipping; noise is disabled in this utility-focused
-  comparison.
-- FLTrust uses a 200-example clean server root set and three root epochs.
-- Safe-FedLLM uses a held-out linear LoRA probe and the Shadow-Level security mapping.
-- FedGraph builds a cosine-similarity graph, extracts degree/betweenness/closeness fingerprints,
-  and applies the paper's HDBSCAN outlier rule.
+- **FedAvg** uses sample-count weights.
+- **IndexGuard** applies Top-K salience, index-overlap similarity,
+  average-linkage clustering, a cohesion margin, and a minority-size check.
+- **FLAME** uses HDBSCAN filtering and norm clipping. Noise is disabled in this
+  utility-focused comparison.
+- **FLTrust** weights updates using a clean standard-domain server root.
+- **Safe-FedLLM** applies a model-specific LoRA probe and soft security weights.
+- **FedGraph** builds a cosine graph and applies graph-centrality fingerprints
+  with HDBSCAN outlier detection.
+- **HARP-FedLLM** combines open-set risk scoring with coherent-mode
+  preservation.
 
-FedProx and SCAFFOLD remain available for legacy profiles but are excluded from the current matrix
-because they are optimization methods rather than attack-specific robust aggregators.
+FedProx and SCAFFOLD remain implemented in the harness but are excluded from the
+formal matrix because they are federated optimization methods rather than
+attack-specific robust aggregators.
 
-## Safe-FedLLM adaptation
+## HARP-FedLLM
 
-The official Shadow-Level method can inspect a shadow LoRA trajectory. This one-round terminal-
-delta harness exposes one submitted delta per client, so the implementation uses the malicious
-probability of that terminal delta as the soft harmful ratio. The feature is the first transformer
-layer's LoRA-B delta normalized to unit length with `log1p(norm)` appended. The security factor is
-`max(0.01, (1-p)^7)`.
+For each client update, HARP-FedLLM records its log norm and representative LoRA
+layer outputs. It measures standard-anchor loss change and sensitivity to a
+fixed text perturbation. Robust medians and scales turn these measurements into
+norm, harm, and sensitivity excess scores; their sum defines malicious risk.
+The risk is mapped to a bounded soft security factor.
 
-The probe is trained only on seed 9101 artifacts covering clean, label-flip, and textual-backdoor
-calibration runs. The formal seed 2026 is explicitly excluded from probe fitting. The committed
-artifact records its source hashes, seeds, feature policy, and in-sample metrics.
+Separately, PCA and clustering expose coherent update modes among clients that
+already pass the risk gate. A sufficiently large, separated mode can be
+preserved even when it differs from the dominant standard-domain mode. Domain
+novelty may increase the contribution of a low-risk client, but it cannot
+override a malicious-risk penalty. This ordering is the core protection against
+rewarding an unusual attack merely because it is novel.
 
-## FedGraph adaptation
+Dataset-specific gains are selected on the no-attack condition and then frozen
+for label flip and textual backdoor. Accepted and rejected choices are recorded
+in `reports/harp_fedllm_six_group_v2/CALIBRATION.md`.
 
-The FedGraph paper uses full LoRA deltas and a default cosine threshold of 0.8. Those settings
-produced an extremely sparse, non-separating graph on Qwen2.5-0.5B. On the independent seed-9101
-calibration artifacts, the first-layer LoRA-B slice with threshold 0.50 separated all three
-malicious clients with no benign false positives for both attacks. The formal configuration fixes
-that input slice and threshold, then follows the paper's graph fingerprints and
-`HDBSCAN(min_cluster_size=16, min_samples=1)` rule. `allow_single_cluster` is enabled so a clean
-round can retain a single benign cluster.
+## Safe-FedLLM and FedGraph adaptations
+
+Safe-FedLLM's model-specific probes are trained on independent seed-9101
+calibration artifacts. Formal seed 2026 is excluded. Each committed JSON file
+records feature policy, source hashes, and calibration metadata.
+
+The FedGraph implementation follows the cosine graph, graph-centrality, and
+HDBSCAN structure. Its LoRA feature scope and thresholds are explicit in each
+formal configuration. These adaptations are disclosed because the harness sees
+one terminal LoRA delta per client rather than a long shadow trajectory.
 
 ## Reporting boundary
 
-The final exporter reads measured outputs only. It reports standard accuracy, heterogeneous
-accuracy, their mean and gap, textual-backdoor ASR, and paired differences from FedAvg. Paper
-target values, HSSR, and HRCW are deliberately absent. A result is a single-seed stress-test result,
-not a multi-seed estimate.
+The exporter reads measured `summary.json` files and reports standard accuracy,
+heterogeneous accuracy, their mean and gap, and textual-backdoor ASR. It does
+not replace outputs with paper targets. HSSR and HRCW remain diagnostic fields
+inside run evidence but are not acceptance criteria.
 
-Rejected calibration attempts and superseded implementations remain documented rather than being
-silently overwritten. The GitHub evidence bundle contains each formal cell's summary, resolved
-configuration, provenance, client coefficients, round metrics, and aggregation diagnostics; model
-weights and dataset caches are excluded.
+The study is a single-seed stress test, not a confidence interval. The evidence
+archive retains each formal cell's resolved configuration, provenance,
+per-client coefficients, aggregation diagnostics, round metrics, and summary.
+Model weights, datasets, checkpoints, and shared-update caches are excluded.
+
+

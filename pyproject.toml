@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fedsapro"
 version = "0.1.0"
-description = "Reproducible federated LoRA experiments for heterogeneous benign client suppression"
+description = "HARP-FedLLM: heterogeneous-aware robust aggregation for federated LoRA"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -28,6 +28,10 @@ dev = ["pytest>=8,<9", "ruff>=0.8,<1"]
 [project.scripts]
 fedsapro = "fedsapro.cli:main"
 
+[project.urls]
+Repository = "https://github.com/Dihaoda/FedSApro"
+Results = "https://github.com/Dihaoda/FedSApro/tree/main/reports/harp_fedllm_six_group_v2"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -41,4 +45,5 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
+
 
