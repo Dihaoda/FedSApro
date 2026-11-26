@@ -1,7 +1,7 @@
 experiment:
-  name: qwen15_natural_domain_attack_study
+  name: qwen15_norm_matched_attack_study_eval128
   seed: 2026
-  output_root: results/natural_domain_attack_study_qwen15_v4
+  output_root: results/natural_domain_attack_study_qwen15_v6_eval128
   data_root: data/natural_domain_attack_study_v3
   model_cache: models
 
@@ -54,6 +54,7 @@ federated:
   learning_rate: 0.0001
   server_learning_rate: 3.0
   max_length: 48
+  eval_max_length: 128
   max_grad_norm: 1.0
   weight_decay: 0.0
   eval_every: 1
@@ -67,6 +68,9 @@ attack:
     none: 1.0
     label_flip: 4.0
     textual_backdoor: 2.3
+  norm_ratio_targets:
+    label_flip: 5.7
+    textual_backdoor: 3.4
   label_flip_fraction: 1.0
   backdoor_fraction: 1.0
   backdoor_target: 0
@@ -76,13 +80,14 @@ method:
   fedprox_mu: 0.01
   scaffold_server_lr: 0.75
   scaffold_control_scale: 0.001
-  # Coarse, fixed method-level strength ladder; frozen across all conditions.
+  # Frozen method-level strengths used by the formal 128-token evaluation.
   server_learning_rates:
-    indexguard: 5.0
-    flame: 6.0
-    fltrust: 5.0
-    safefedllm: 7.25
-    fedgraph: 9.0
+    indexguard: 2.5
+    flame: 4.0
+    fltrust: 3.5
+    safefedllm: 4.0
+    fedgraph: 6.5
+    harp_fedllm: 3.0
   indexguard:
     topk_fraction: 0.10
     clusters: 3
@@ -90,12 +95,15 @@ method:
     minority_ratio: 1.0
     fallback: none
     norm_ratio_cap: 2.0
+    rejected_weight: 0.02
   flame:
     min_cluster_size: 12
     min_samples: 1
     noise_multiplier: 0.0
+    rejected_weight: 0.05
   fltrust:
     root_epochs: 3
+    trust_floor: 0.02
   safefedllm:
     probe_path: artifacts/safefedllm_probe_qwen15_v4.pt
     # Terminal LoRA deltas provide only one shadow snapshot per client.  A
@@ -104,6 +112,7 @@ method:
     eta: 80.0
     min_weight: 0.01
     selection_threshold: 0.5
+    norm_guard_fraction: 0.10
   fedgraph:
     feature_scope: full_delta
     similarity_threshold: 0.8
@@ -111,6 +120,33 @@ method:
     min_cluster_size: 16
     min_samples: 1
     allow_single_cluster: true
+    rejected_weight: 0.03
+  harp_fedllm:
+    anchor_samples: 48
+    representative_layers: 3
+    perturbation_suffix: " Additional context is unavailable."
+    min_mode_size: 4
+    pca_components: 6
+    norm_z_threshold: 3.0
+    harm_z_threshold: 2.5
+    sensitivity_z_threshold: 3.0
+    mode_bonus: 0.5
+    temperature: 1.0
+    minimum_factor: 0.01
+    selection_threshold: 0.25
+    utility_gain: 0.0
+    utility_z_cap: 2.0
+    novelty_gain: 0.0
+    novelty_z_cap: 2.0
+    preservation_modes: 3
+    dominant_mode_gain: 0.25
+    preservation_gain: 0.0
+    preservation_min_separation: 0.10
+    preservation_residual_gain: 0.0
+    preservation_residual_norm_cap: 1.0
+    anchor_calibration_epochs: 1
+    anchor_calibration_seed: 777
+    anchor_correction_ratio: 0.0
 
 calibration:
   capture_safefedllm_features: false
@@ -130,5 +166,5 @@ reporting:
     qwen2.5-0.5b: qwen2.5-1.5b
   accuracy_tolerance_points: 3.0
   hssr_tolerance_points: 5.0
-  run_class: qwen15_natural_domain_attack_study
+  run_class: qwen15_norm_matched_attack_study_eval128
 

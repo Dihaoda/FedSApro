@@ -49,7 +49,7 @@ python scripts/run_matrix.py \
   --config configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml \
   --models qwen2.5-3b \
   --attacks none label_flip textual_backdoor \
-    --methods fedavg indexguard flame fltrust safefedllm fedgraph harp_fedllm \
+  --methods fedavg indexguard flame fltrust safefedllm fedgraph harp_fedllm \
   --seeds 2026 --continue-on-error \
   --manifest results/cross_domain_tweet_yelp_qwen3_v1/events.jsonl
 ```
