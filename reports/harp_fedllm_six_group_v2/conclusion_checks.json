@@ -1,0 +1,516 @@
+{
+  "all_six_groups_pass": false,
+  "groups": [
+    {
+      "study": "amazon_imdb_qwen05",
+      "title": "Qwen2.5-0.5B on Amazon Polarity and IMDb",
+      "matrix_complete": true,
+      "attack_checks": [
+        {
+          "attack": "none",
+          "harp_heterogeneous_accuracy": 83.31466965,
+          "best_baseline_heterogeneous_method": "fedavg",
+          "best_baseline_heterogeneous_accuracy": 83.25867861,
+          "heterogeneous_margin": 0.055991039999994996,
+          "harp_mean_accuracy": 88.521836505,
+          "best_baseline_mean_method": "fedavg",
+          "best_baseline_mean_accuracy": 88.40985442499999,
+          "mean_margin": 0.1119820800000042,
+          "passes": true
+        },
+        {
+          "attack": "label_flip",
+          "harp_heterogeneous_accuracy": 83.03471445,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 82.86674132,
+          "heterogeneous_margin": 0.16797312999999292,
+          "harp_mean_accuracy": 88.52183651,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 88.40985442499999,
+          "mean_margin": 0.11198208500000817,
+          "passes": true
+        },
+        {
+          "attack": "textual_backdoor",
+          "harp_heterogeneous_accuracy": 82.92273236,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 82.86674132,
+          "heterogeneous_margin": 0.055991039999994996,
+          "harp_mean_accuracy": 88.40985442,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 88.35386338,
+          "mean_margin": 0.055991039999994996,
+          "passes": true
+        }
+      ],
+      "method_averages_across_attacks": {
+        "fedavg": {
+          "standard_accuracy": 92.81448301666666,
+          "heterogeneous_accuracy": 78.57409481,
+          "mean_accuracy": 85.69428891333332
+        },
+        "indexguard": {
+          "standard_accuracy": 93.85964912333333,
+          "heterogeneous_accuracy": 82.90406868000001,
+          "mean_accuracy": 88.38185890166666
+        },
+        "flame": {
+          "standard_accuracy": 94.27025009333333,
+          "heterogeneous_accuracy": 80.17917133666667,
+          "mean_accuracy": 87.224710715
+        },
+        "fltrust": {
+          "standard_accuracy": 94.40089585666668,
+          "heterogeneous_accuracy": 77.75289287,
+          "mean_accuracy": 86.07689436333334
+        },
+        "safefedllm": {
+          "standard_accuracy": 94.04628593,
+          "heterogeneous_accuracy": 80.12318029333333,
+          "mean_accuracy": 87.08473311166667
+        },
+        "fedgraph": {
+          "standard_accuracy": 93.63568495999999,
+          "heterogeneous_accuracy": 75.15864128333334,
+          "mean_accuracy": 84.39716312166667
+        },
+        "harp_fedllm": {
+          "standard_accuracy": 93.87831280333334,
+          "heterogeneous_accuracy": 83.09070548666666,
+          "mean_accuracy": 88.484509145
+        }
+      },
+      "best_baseline_heterogeneous_method": "indexguard",
+      "best_baseline_mean_method": "indexguard",
+      "overall_heterogeneous_margin": 0.18663680666665527,
+      "overall_mean_margin": 0.10265024333334338,
+      "passes": true
+    },
+    {
+      "study": "tweet_yelp_qwen05",
+      "title": "Qwen2.5-0.5B on TweetEval and Yelp Polarity",
+      "matrix_complete": true,
+      "attack_checks": [
+        {
+          "attack": "none",
+          "harp_heterogeneous_accuracy": 89.47368421,
+          "best_baseline_heterogeneous_method": "flame",
+          "best_baseline_heterogeneous_accuracy": 89.41769317,
+          "heterogeneous_margin": 0.055991039999994996,
+          "harp_mean_accuracy": 89.55767077,
+          "best_baseline_mean_method": "safefedllm",
+          "best_baseline_mean_accuracy": 89.52967525,
+          "mean_margin": 0.027995520000004603,
+          "passes": true
+        },
+        {
+          "attack": "label_flip",
+          "harp_heterogeneous_accuracy": 89.24972004,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 88.52183651,
+          "heterogeneous_margin": 0.7278835299999997,
+          "harp_mean_accuracy": 89.417693165,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 89.05375140000001,
+          "mean_margin": 0.36394176499999276,
+          "passes": true
+        },
+        {
+          "attack": "textual_backdoor",
+          "harp_heterogeneous_accuracy": 89.02575588,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 88.40985442,
+          "heterogeneous_margin": 0.6159014600000035,
+          "harp_mean_accuracy": 89.277715565,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 89.0537514,
+          "mean_margin": 0.22396416499999816,
+          "passes": true
+        }
+      ],
+      "method_averages_across_attacks": {
+        "fedavg": {
+          "standard_accuracy": 82.47480403333333,
+          "heterogeneous_accuracy": 80.29115341666666,
+          "mean_accuracy": 81.382978725
+        },
+        "indexguard": {
+          "standard_accuracy": 89.67898469666666,
+          "heterogeneous_accuracy": 88.70847331,
+          "mean_accuracy": 89.19372900333333
+        },
+        "flame": {
+          "standard_accuracy": 88.09257185666667,
+          "heterogeneous_accuracy": 88.33519970000002,
+          "mean_accuracy": 88.21388577833333
+        },
+        "fltrust": {
+          "standard_accuracy": 83.44531541333333,
+          "heterogeneous_accuracy": 80.62709966666667,
+          "mean_accuracy": 82.03620754
+        },
+        "safefedllm": {
+          "standard_accuracy": 86.89809630333333,
+          "heterogeneous_accuracy": 86.17021276666667,
+          "mean_accuracy": 86.53415453500001
+        },
+        "fedgraph": {
+          "standard_accuracy": 87.92459873,
+          "heterogeneous_accuracy": 88.35386338333335,
+          "mean_accuracy": 88.13923105666667
+        },
+        "harp_fedllm": {
+          "standard_accuracy": 89.58566629,
+          "heterogeneous_accuracy": 89.24972004333334,
+          "mean_accuracy": 89.41769316666667
+        }
+      },
+      "best_baseline_heterogeneous_method": "indexguard",
+      "best_baseline_mean_method": "indexguard",
+      "overall_heterogeneous_margin": 0.5412467333333382,
+      "overall_mean_margin": 0.2239641633333349,
+      "passes": true
+    },
+    {
+      "study": "amazon_imdb_qwen15",
+      "title": "Qwen2.5-1.5B on Amazon Polarity and IMDb",
+      "matrix_complete": true,
+      "attack_checks": [
+        {
+          "attack": "none",
+          "harp_heterogeneous_accuracy": 87.5699888,
+          "best_baseline_heterogeneous_method": "fedavg",
+          "best_baseline_heterogeneous_accuracy": 87.17805151,
+          "heterogeneous_margin": 0.3919372900000013,
+          "harp_mean_accuracy": 91.76931691,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 91.57334826499999,
+          "mean_margin": 0.19596864500000777,
+          "passes": true
+        },
+        {
+          "attack": "label_flip",
+          "harp_heterogeneous_accuracy": 87.01007839,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 86.95408735,
+          "heterogeneous_margin": 0.05599104000000921,
+          "harp_mean_accuracy": 91.461366185,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 91.545352745,
+          "mean_margin": -0.0839865599999996,
+          "passes": false
+        },
+        {
+          "attack": "textual_backdoor",
+          "harp_heterogeneous_accuracy": 87.17805151,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 87.23404255,
+          "heterogeneous_margin": -0.055991039999994996,
+          "harp_mean_accuracy": 91.57334826499999,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 91.65733482499999,
+          "mean_margin": -0.0839865599999996,
+          "passes": false
+        }
+      ],
+      "method_averages_across_attacks": {
+        "fedavg": {
+          "standard_accuracy": 95.33407988333333,
+          "heterogeneous_accuracy": 76.33445315333334,
+          "mean_accuracy": 85.83426651833334
+        },
+        "indexguard": {
+          "standard_accuracy": 96.11795446,
+          "heterogeneous_accuracy": 87.06606943000001,
+          "mean_accuracy": 91.59201194500001
+        },
+        "flame": {
+          "standard_accuracy": 93.44904815333332,
+          "heterogeneous_accuracy": 78.72340425666667,
+          "mean_accuracy": 86.086226205
+        },
+        "fltrust": {
+          "standard_accuracy": 93.84098544333334,
+          "heterogeneous_accuracy": 76.67039940333333,
+          "mean_accuracy": 85.25569242333334
+        },
+        "safefedllm": {
+          "standard_accuracy": 95.39007091999999,
+          "heterogeneous_accuracy": 86.46883165333334,
+          "mean_accuracy": 90.92945128666666
+        },
+        "fedgraph": {
+          "standard_accuracy": 91.97461739333333,
+          "heterogeneous_accuracy": 76.27846211,
+          "mean_accuracy": 84.12653975166667
+        },
+        "harp_fedllm": {
+          "standard_accuracy": 95.94998134000001,
+          "heterogeneous_accuracy": 87.25270623333334,
+          "mean_accuracy": 91.60134378666667
+        }
+      },
+      "best_baseline_heterogeneous_method": "indexguard",
+      "best_baseline_mean_method": "indexguard",
+      "overall_heterogeneous_margin": 0.18663680333332877,
+      "overall_mean_margin": 0.009331841666664786,
+      "passes": true
+    },
+    {
+      "study": "tweet_yelp_qwen15",
+      "title": "Qwen2.5-1.5B on TweetEval and Yelp Polarity",
+      "matrix_complete": true,
+      "attack_checks": [
+        {
+          "attack": "none",
+          "harp_heterogeneous_accuracy": 93.16909294999999,
+          "best_baseline_heterogeneous_method": "safefedllm",
+          "best_baseline_heterogeneous_accuracy": 93.11310189999999,
+          "heterogeneous_margin": 0.05599105000000293,
+          "harp_mean_accuracy": 92.83314669999999,
+          "best_baseline_mean_method": "safefedllm",
+          "best_baseline_mean_accuracy": 92.72116460999999,
+          "mean_margin": 0.11198208999999792,
+          "passes": true
+        },
+        {
+          "attack": "label_flip",
+          "harp_heterogeneous_accuracy": 92.88913774000001,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 92.77715566,
+          "heterogeneous_margin": 0.1119820800000042,
+          "harp_mean_accuracy": 92.693169095,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 92.58118701500001,
+          "mean_margin": 0.11198207999998999,
+          "passes": true
+        },
+        {
+          "attack": "textual_backdoor",
+          "harp_heterogeneous_accuracy": 92.94512877999999,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 93.05711086000001,
+          "heterogeneous_margin": -0.11198208000001841,
+          "harp_mean_accuracy": 92.693169095,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 92.69316909,
+          "mean_margin": 5.000003966415534e-09,
+          "passes": false
+        }
+      ],
+      "method_averages_across_attacks": {
+        "fedavg": {
+          "standard_accuracy": 79.50727883666667,
+          "heterogeneous_accuracy": 86.15154908666666,
+          "mean_accuracy": 82.82941396166667
+        },
+        "indexguard": {
+          "standard_accuracy": 92.40388204666665,
+          "heterogeneous_accuracy": 92.85181037666666,
+          "mean_accuracy": 92.62784621166668
+        },
+        "flame": {
+          "standard_accuracy": 87.75662561,
+          "heterogeneous_accuracy": 89.64165733666668,
+          "mean_accuracy": 88.69914147333333
+        },
+        "fltrust": {
+          "standard_accuracy": 85.79693915666667,
+          "heterogeneous_accuracy": 89.19372900666667,
+          "mean_accuracy": 87.49533408166667
+        },
+        "safefedllm": {
+          "standard_accuracy": 89.45502053,
+          "heterogeneous_accuracy": 89.99626726333332,
+          "mean_accuracy": 89.72564389666667
+        },
+        "fedgraph": {
+          "standard_accuracy": 90.35087719,
+          "heterogeneous_accuracy": 90.81746920333335,
+          "mean_accuracy": 90.58417319666667
+        },
+        "harp_fedllm": {
+          "standard_accuracy": 92.47853677,
+          "heterogeneous_accuracy": 93.00111982333333,
+          "mean_accuracy": 92.73982829666666
+        }
+      },
+      "best_baseline_heterogeneous_method": "indexguard",
+      "best_baseline_mean_method": "indexguard",
+      "overall_heterogeneous_margin": 0.14930944666666335,
+      "overall_mean_margin": 0.11198208499997975,
+      "passes": true
+    },
+    {
+      "study": "amazon_imdb_qwen3",
+      "title": "Qwen2.5-3B on Amazon Polarity and IMDb",
+      "matrix_complete": true,
+      "attack_checks": [
+        {
+          "attack": "none",
+          "harp_heterogeneous_accuracy": 88.46584546,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 88.46584546,
+          "heterogeneous_margin": 0.0,
+          "harp_mean_accuracy": 91.90929451,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 91.90929451,
+          "mean_margin": 0.0,
+          "passes": false
+        },
+        {
+          "attack": "label_flip",
+          "harp_heterogeneous_accuracy": 88.52183651,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 88.40985442,
+          "heterogeneous_margin": 0.11198208999999792,
+          "harp_mean_accuracy": 91.96528555500001,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 91.93729003,
+          "mean_margin": 0.02799552500000857,
+          "passes": true
+        },
+        {
+          "attack": "textual_backdoor",
+          "harp_heterogeneous_accuracy": 88.68980963,
+          "best_baseline_heterogeneous_method": "indexguard",
+          "best_baseline_heterogeneous_accuracy": 88.52183651,
+          "heterogeneous_margin": 0.1679731199999992,
+          "harp_mean_accuracy": 92.10526315999999,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 91.88129899500001,
+          "mean_margin": 0.22396416499998395,
+          "passes": true
+        }
+      ],
+      "method_averages_across_attacks": {
+        "fedavg": {
+          "standard_accuracy": 95.05412467666667,
+          "heterogeneous_accuracy": 76.78238148333334,
+          "mean_accuracy": 85.91825308
+        },
+        "indexguard": {
+          "standard_accuracy": 95.35274356000001,
+          "heterogeneous_accuracy": 88.46584546333334,
+          "mean_accuracy": 91.90929451166666
+        },
+        "flame": {
+          "standard_accuracy": 95.03546099333334,
+          "heterogeneous_accuracy": 81.69092945,
+          "mean_accuracy": 88.36319522166667
+        },
+        "fltrust": {
+          "standard_accuracy": 95.27808884000001,
+          "heterogeneous_accuracy": 81.98954833666666,
+          "mean_accuracy": 88.63381858833334
+        },
+        "safefedllm": {
+          "standard_accuracy": 95.29675252,
+          "heterogeneous_accuracy": 80.04852557,
+          "mean_accuracy": 87.672639045
+        },
+        "fedgraph": {
+          "standard_accuracy": 95.3154162,
+          "heterogeneous_accuracy": 83.98656215,
+          "mean_accuracy": 89.65098917499999
+        },
+        "harp_fedllm": {
+          "standard_accuracy": 95.42739828333333,
+          "heterogeneous_accuracy": 88.55916386666667,
+          "mean_accuracy": 91.99328107499998
+        }
+      },
+      "best_baseline_heterogeneous_method": "indexguard",
+      "best_baseline_mean_method": "indexguard",
+      "overall_heterogeneous_margin": 0.09331840333332764,
+      "overall_mean_margin": 0.0839865633333261,
+      "passes": true
+    },
+    {
+      "study": "tweet_yelp_qwen3",
+      "title": "Qwen2.5-3B on TweetEval and Yelp Polarity",
+      "matrix_complete": true,
+      "attack_checks": [
+        {
+          "attack": "none",
+          "harp_heterogeneous_accuracy": 94.06494961,
+          "best_baseline_heterogeneous_method": "fedavg",
+          "best_baseline_heterogeneous_accuracy": 94.00895857,
+          "heterogeneous_margin": 0.055991039999994996,
+          "harp_mean_accuracy": 93.11310190500001,
+          "best_baseline_mean_method": "fedavg",
+          "best_baseline_mean_accuracy": 93.169092945,
+          "mean_margin": -0.055991039999994996,
+          "passes": false
+        },
+        {
+          "attack": "label_flip",
+          "harp_heterogeneous_accuracy": 93.84098544,
+          "best_baseline_heterogeneous_method": "fltrust",
+          "best_baseline_heterogeneous_accuracy": 94.12094065,
+          "heterogeneous_margin": -0.2799552099999971,
+          "harp_mean_accuracy": 93.05711086,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 92.94512878,
+          "mean_margin": 0.11198207999998999,
+          "passes": false
+        },
+        {
+          "attack": "textual_backdoor",
+          "harp_heterogeneous_accuracy": 94.00895857,
+          "best_baseline_heterogeneous_method": "fltrust",
+          "best_baseline_heterogeneous_accuracy": 94.28891377000001,
+          "heterogeneous_margin": -0.2799552000000034,
+          "harp_mean_accuracy": 93.057110865,
+          "best_baseline_mean_method": "indexguard",
+          "best_baseline_mean_accuracy": 93.141097425,
+          "mean_margin": -0.0839865599999996,
+          "passes": false
+        }
+      ],
+      "method_averages_across_attacks": {
+        "fedavg": {
+          "standard_accuracy": 85.29301978,
+          "heterogeneous_accuracy": 87.56998880333333,
+          "mean_accuracy": 86.43150429166667
+        },
+        "indexguard": {
+          "standard_accuracy": 92.04927211666666,
+          "heterogeneous_accuracy": 94.04628593,
+          "mean_accuracy": 93.04777902333335
+        },
+        "flame": {
+          "standard_accuracy": 91.28406121666667,
+          "heterogeneous_accuracy": 93.57969391666667,
+          "mean_accuracy": 92.43187756666667
+        },
+        "fltrust": {
+          "standard_accuracy": 88.95110116000001,
+          "heterogeneous_accuracy": 94.10227696666668,
+          "mean_accuracy": 91.52668906333334
+        },
+        "safefedllm": {
+          "standard_accuracy": 89.08174692333334,
+          "heterogeneous_accuracy": 93.85964912000001,
+          "mean_accuracy": 91.47069802166668
+        },
+        "fedgraph": {
+          "standard_accuracy": 88.33519969999999,
+          "heterogeneous_accuracy": 93.99029488333333,
+          "mean_accuracy": 91.16274729166666
+        },
+        "harp_fedllm": {
+          "standard_accuracy": 92.17991788,
+          "heterogeneous_accuracy": 93.97163120666666,
+          "mean_accuracy": 93.07577454333334
+        }
+      },
+      "best_baseline_heterogeneous_method": "fltrust",
+      "best_baseline_mean_method": "indexguard",
+      "overall_heterogeneous_margin": -0.13064576000002148,
+      "overall_mean_margin": 0.027995519999990393,
+      "passes": false
+    }
+  ]
+}
+

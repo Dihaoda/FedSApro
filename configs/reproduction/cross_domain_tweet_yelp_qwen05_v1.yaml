@@ -1,7 +1,7 @@
 experiment:
-  name: cross_domain_tweet_yelp_qwen05_v1
+  name: cross_domain_tweet_yelp_qwen05_v2_eval128
   seed: 2026
-  output_root: results/cross_domain_tweet_yelp_qwen05_v1
+  output_root: results/cross_domain_tweet_yelp_qwen05_v2_eval128
   data_root: data/cross_domain_tweet_yelp_v1
   model_cache: models
 
@@ -70,6 +70,7 @@ federated:
   learning_rate: 0.0001
   server_learning_rate: 3.0
   max_length: 48
+  eval_max_length: 128
   max_grad_norm: 1.0
   weight_decay: 0.0
   eval_every: 1
@@ -105,7 +106,7 @@ method:
     fltrust: 11.0
     safefedllm: {none: 12.0, label_flip: 18.5, textual_backdoor: 20.0}
     fedgraph: {none: 15.0, label_flip: 16.5, textual_backdoor: 16.5}
-    harp_fedllm: 5.0
+    harp_fedllm: 11.0
   indexguard:
     topk_fraction: 0.10
     clusters: 3
@@ -153,6 +154,12 @@ method:
     utility_z_cap: 2.0
     novelty_gain: 0.30
     novelty_z_cap: 2.0
+    preservation_modes: 3
+    dominant_mode_gain: 1.2
+    preservation_gain: 0.0
+    preservation_min_separation: 0.10
+    preservation_residual_gain: 0.0
+    preservation_residual_norm_cap: 1.0
     anchor_calibration_epochs: 1
     anchor_calibration_seed: 777
     anchor_correction_ratio: 0.0
@@ -176,5 +183,5 @@ reporting:
     qwen2.5-0.5b: qwen2.5-1.5b
   accuracy_tolerance_points: 3.0
   hssr_tolerance_points: 5.0
-  run_class: cross_domain_tweet_yelp_qwen05_v1
+  run_class: cross_domain_tweet_yelp_qwen05_v2_eval128
 

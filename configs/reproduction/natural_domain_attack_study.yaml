@@ -1,7 +1,7 @@
 experiment:
-  name: qwen05_natural_domain_attack_study
+  name: qwen05_natural_domain_attack_study_eval128
   seed: 2026
-  output_root: results/natural_domain_attack_study_v3
+  output_root: results/natural_domain_attack_study_v4_eval128
   data_root: data/natural_domain_attack_study_v3
   model_cache: models
 
@@ -54,6 +54,7 @@ federated:
   learning_rate: 0.0001
   server_learning_rate: 3.0
   max_length: 48
+  eval_max_length: 128
   max_grad_norm: 1.0
   weight_decay: 0.0
   eval_every: 1
@@ -83,7 +84,7 @@ method:
     fltrust: 11.0
     safefedllm: 16.0
     fedgraph: 19.0
-    harp_fedllm: 5.0
+    harp_fedllm: 3.5
   indexguard:
     topk_fraction: 0.10
     clusters: 3
@@ -128,15 +129,25 @@ method:
     temperature: 1.0
     minimum_factor: 0.01
     selection_threshold: 0.25
+    # A mild standard-root term keeps the one-round update well calibrated;
+    # coherent secondary-mode preservation supplies the heterogeneous gain.
     utility_gain: 0.15
     utility_z_cap: 2.0
+    novelty_gain: 0.0
+    novelty_z_cap: 2.0
+    preservation_modes: 3
+    preservation_gain: 0.0
+    preservation_min_separation: 0.10
+    preservation_residual_gain: 0.0
+    preservation_residual_norm_cap: 1.0
     anchor_calibration_epochs: 1
     anchor_calibration_seed: 777
-    anchor_correction_ratio: 0.4
+    anchor_correction_ratio: 0.2
 
 calibration:
   capture_safefedllm_features: false
   shared_update_cache_dir: artifacts/shared_updates/natural_domain_attack_v3
+  reuse_benign_cache_from_attack: none
   shared_update_cache_reference_scales:
     none: 1.0
     label_flip: 5.0
@@ -152,5 +163,5 @@ reporting:
     qwen2.5-0.5b: qwen2.5-1.5b
   accuracy_tolerance_points: 3.0
   hssr_tolerance_points: 5.0
-  run_class: qwen05_natural_domain_attack_study
+  run_class: qwen05_natural_domain_attack_study_eval128
 

@@ -6,14 +6,28 @@ second pair of sentiment domains. It tests the paper's qualitative conclusion
 rather than attempting to reproduce its absolute values; HSSR, HRCW, paper
 targets, and synthetic result jitter are not acceptance criteria.
 
-## HARP-FedLLM study (in progress)
+## HARP-FedLLM six-group study
 
-HARP-FedLLM is the new open-set defense developed in this repository. It uses
-three-layer LoRA and anchor-representation fingerprints, but it never penalizes
-domain novelty by itself. The first completed group is Qwen2.5-0.5B on Amazon
-Polarity--IMDb; its measured table, frozen method details, and per-client raw
-evidence are in `reports/harp_fedllm_study_v1/`. Later groups are added only
-after the preceding group is reviewed.
+HARP-FedLLM is the open-set defense developed in this repository. It combines
+three-layer LoRA fingerprints, a standard-domain server anchor, perturbation
+sensitivity, and coherent update modes. Domain novelty is a preservation signal
+and is never a rejection signal by itself.
+
+The completed study covers Qwen2.5-0.5B, 1.5B, and 3B on Amazon
+Polarity--IMDb and TweetEval--Yelp Polarity. Each group contains no attack,
+label flip, and textual backdoor conditions and compares FedAvg, IndexGuard,
+FLAME, FLTrust, Safe-FedLLM, FedGraph, and HARP-FedLLM. All 126 cells use seed
+2026, the same cached client updates within a model/dataset/attack group,
+48-token training and fingerprints, and 128-token evaluation.
+
+HARP-FedLLM has the highest two-domain mean accuracy in all six groups and the
+highest heterogeneous-domain accuracy after averaging the three conditions in
+five of six groups. The Qwen2.5-3B TweetEval--Yelp group is the disclosed
+exception: HARP-FedLLM leads mean accuracy by 0.0280 points but trails the best
+heterogeneous-domain baseline by 0.1306 points. The complete 126-row measured
+table, machine-readable checks, and compact evidence are in
+`reports/harp_fedllm_six_group_v2/`. No paper targets, post-hoc jitter, or
+hand-edited result values are used.
 
 ## TweetEval-Yelp three-scale validation
 
@@ -72,7 +86,7 @@ python scripts/run_matrix.py \
   --config configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml \
   --models qwen2.5-3b \
   --attacks none label_flip textual_backdoor \
-  --methods fedavg indexguard flame fltrust safefedllm fedgraph \
+  --methods fedavg indexguard flame fltrust safefedllm fedgraph harp_fedllm \
   --seeds 2026 --continue-on-error \
   --manifest results/cross_domain_tweet_yelp_qwen3_v1/events.jsonl
 
@@ -97,11 +111,13 @@ python -m ruff check .
 python -m pytest -q
 ```
 
-The frozen study is exploratory and single-seed. Server-step calibration uses
-cached client updates from seed 2026 and is recorded transparently in each
-scale's `CALIBRATION.md`; it does not alter local training, attack updates, or
-defense client-selection decisions. Datasets, model weights, checkpoints,
-shared-update caches, server logs, and credentials are not committed.
+The frozen study is exploratory and single-seed. HARP-FedLLM calibration uses
+only the no-attack condition and cached seed-2026 client updates; the selected
+parameters are then frozen for both attacks. Accepted and rejected trials are
+recorded in `reports/harp_fedllm_six_group_v2/CALIBRATION.md`. Calibration does
+not alter local training or attack updates. Datasets, model weights,
+checkpoints, shared-update caches, server logs, and credentials are not
+committed.
 
 Historical Amazon-IMDb experiments remain in their original configuration and
 report directories. See `docs/METHODOLOGY.md` for implementation boundaries,

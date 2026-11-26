@@ -215,6 +215,108 @@ def _mode_analysis(matrix: np.ndarray, config: Mapping[str, Any]) -> tuple[np.nd
     return labels, novelty, unsupported
 
 
+def _supported_mode_preservation(
+    update_matrix: np.ndarray,
+    security_factors: np.ndarray,
+    config: Mapping[str, Any],
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
+    """Preserve coherent, risk-free update modes beyond the dominant mode.
+
+    A genuinely different benign domain normally contributes several mutually
+    consistent clients.  In contrast, an isolated outlier should not receive a
+    heterogeneity bonus.  Clustering is therefore restricted to clients that
+    already pass the attack-risk gate, and only a secondary mode with at least
+    ``min_mode_size`` members can be preserved.  More than one benign domain
+    mode may exist (for example, short and long documents from the same unseen
+    domain), so every sufficiently separated supported mode is retained.
+    """
+    from sklearn.cluster import AgglomerativeClustering
+
+    count = len(update_matrix)
+    labels = np.full(count, -1, dtype=np.int64)
+    preservation = np.ones(count, dtype=np.float64)
+    minimum_size = max(2, int(config.get("min_mode_size", 4)))
+    threshold = float(config.get("selection_threshold", 0.25))
+    trusted = np.flatnonzero(security_factors >= threshold)
+    requested_modes = max(2, int(config.get("preservation_modes", 3)))
+    modes = min(requested_modes, len(trusted) - 1)
+    details: dict[str, Any] = {
+        "trusted_clients": trusted.tolist(),
+        "supported_modes": [],
+        "dominant_mode": None,
+        "preserved_mode": None,
+        "preserved_modes": [],
+        "preserved_mode_separation": 0.0,
+    }
+    if len(trusted) < 2 * minimum_size or modes < 2:
+        return labels, preservation, details
+
+    vectors = np.asarray(update_matrix[trusted], dtype=np.float64)
+    vectors /= np.maximum(np.linalg.norm(vectors, axis=1, keepdims=True), 1e-12)
+    distance = np.clip(1.0 - vectors @ vectors.T, 0.0, 2.0)
+    np.fill_diagonal(distance, 0.0)
+    trusted_labels = AgglomerativeClustering(
+        n_clusters=modes,
+        metric="precomputed",
+        linkage="average",
+    ).fit_predict(distance)
+    labels[trusted] = trusted_labels
+    sizes = {
+        int(label): int((trusted_labels == label).sum())
+        for label in np.unique(trusted_labels)
+    }
+    supported = sorted(label for label, size in sizes.items() if size >= minimum_size)
+    details["mode_sizes"] = sizes
+    details["supported_modes"] = supported
+    if not supported:
+        return labels, preservation, details
+
+    dominant = sorted(supported, key=lambda label: (-sizes[label], label))[0]
+    details["dominant_mode"] = dominant
+    dominant_gain = max(0.0, float(config.get("dominant_mode_gain", 0.0)))
+    preservation[trusted[trusted_labels == dominant]] = 1.0 + dominant_gain
+    details["dominant_mode_gain"] = dominant_gain
+    if len(supported) < 2:
+        return labels, preservation, details
+    centroids: dict[int, np.ndarray] = {}
+    for label in supported:
+        centroid = vectors[trusted_labels == label].mean(axis=0)
+        centroids[label] = centroid / max(float(np.linalg.norm(centroid)), 1e-12)
+    separations = {
+        label: float(np.clip(1.0 - centroids[label] @ centroids[dominant], 0.0, 2.0))
+        for label in supported
+        if label != dominant
+    }
+    if not separations:
+        return labels, preservation, details
+    minimum_separation = float(config.get("preservation_min_separation", 0.10))
+    preserved_modes = sorted(
+        (
+            label
+            for label, separation in separations.items()
+            if separation >= minimum_separation
+        ),
+        key=lambda label: (-separations[label], -sizes[label], label),
+    )
+    details["mode_separations"] = separations
+    details["preserved_modes"] = preserved_modes
+    if not preserved_modes:
+        return labels, preservation, details
+
+    # Keep the most separated mode in the legacy scalar field used by the
+    # optional residual path, while contribution weighting retains all of the
+    # supported minority modes.
+    preserved = preserved_modes[0]
+    separation = separations[preserved]
+    gain = max(0.0, float(config.get("preservation_gain", 0.0)))
+    preservation[
+        trusted[np.isin(trusted_labels, np.asarray(preserved_modes, dtype=np.int64))]
+    ] = 1.0 + gain
+    details["preserved_mode"] = preserved
+    details["preserved_mode_separation"] = separation
+    return labels, preservation, details
+
+
 def aggregate_harp_fedllm(
     model: torch.nn.Module,
     tokenizer: Any,
@@ -347,6 +449,9 @@ def aggregate_harp_fedllm(
     temperature = float(config.get("temperature", 1.0))
     minimum = float(config.get("minimum_factor", 0.01))
     factors = np.maximum(minimum, np.exp(-risk / temperature))
+    preservation_labels, preservation_factor, preservation_details = (
+        _supported_mode_preservation(update_matrix, factors, config)
+    )
     # Among clients that are not risky, gently prefer updates that reduce the
     # standard-anchor loss more than the robust median. The cap prevents a
     # small number of easy-anchor specialists from dominating aggregation.
@@ -377,8 +482,13 @@ def aggregate_harp_fedllm(
         * float(factor)
         * float(value)
         * float(novelty_value)
-        for update, factor, value, novelty_value in zip(
-            updates, factors, utility, novelty_factor
+        * float(preservation_value)
+        for update, factor, value, novelty_value, preservation_value in zip(
+            updates,
+            factors,
+            utility,
+            novelty_factor,
+            preservation_factor,
         )
     }
     total = sum(effective.values())
@@ -387,6 +497,44 @@ def aggregate_harp_fedllm(
     aggregate = torch.zeros_like(updates[0].delta, dtype=torch.float32, device="cpu")
     for update in updates:
         aggregate.add_(update.delta.float().cpu(), alpha=effective[update.client_id] / total)
+    residual_gain = max(0.0, float(config.get("preservation_residual_gain", 0.0)))
+    residual_norm = 0.0
+    residual_applied_norm = 0.0
+    preserved_mode = preservation_details.get("preserved_mode")
+    dominant_mode = preservation_details.get("dominant_mode")
+    if residual_gain and preserved_mode is not None and dominant_mode is not None:
+        mode_means: dict[int, torch.Tensor] = {}
+        for mode in (int(dominant_mode), int(preserved_mode)):
+            members = [
+                (update, effective[update.client_id])
+                for update, label in zip(updates, preservation_labels)
+                if int(label) == mode
+            ]
+            mode_total = sum(weight for _, weight in members)
+            if mode_total > 0:
+                mean = torch.zeros_like(aggregate)
+                for update, weight in members:
+                    mean.add_(update.delta.float().cpu(), alpha=weight / mode_total)
+                mode_means[mode] = mean
+        if int(dominant_mode) in mode_means and int(preserved_mode) in mode_means:
+            dominant_delta = mode_means[int(dominant_mode)]
+            preserved_delta = mode_means[int(preserved_mode)]
+            denominator = float(torch.dot(dominant_delta, dominant_delta).item())
+            projection_scale = (
+                float(torch.dot(preserved_delta, dominant_delta).item()) / denominator
+                if denominator > 1e-12
+                else 0.0
+            )
+            residual = preserved_delta - dominant_delta * projection_scale
+            residual_norm = float(torch.linalg.vector_norm(residual).item())
+            cap_ratio = max(0.0, float(config.get("preservation_residual_norm_cap", 1.0)))
+            maximum = cap_ratio * float(torch.linalg.vector_norm(aggregate).item())
+            if residual_norm > maximum > 0.0:
+                residual.mul_(maximum / residual_norm)
+            aggregate.add_(residual, alpha=residual_gain)
+            residual_applied_norm = residual_gain * float(
+                torch.linalg.vector_norm(residual).item()
+            )
     correction_ratio = float(config.get("anchor_correction_ratio", 0.0))
     if correction_ratio:
         if root_delta is None:
@@ -426,6 +574,18 @@ def aggregate_harp_fedllm(
             },
             "novelty_gain": novelty_gain,
             "novelty_z_cap": novelty_z_cap,
+            "preservation_mode_labels": {
+                client_id: int(value)
+                for client_id, value in zip(ids, preservation_labels)
+            },
+            "preservation_factor": {
+                client_id: float(value)
+                for client_id, value in zip(ids, preservation_factor)
+            },
+            "preservation_details": preservation_details,
+            "preservation_residual_gain": residual_gain,
+            "preservation_residual_norm": residual_norm,
+            "preservation_residual_applied_norm": residual_applied_norm,
             "anchor_correction_ratio": correction_ratio,
             "robust_references": {
                 "norm": norm_reference,

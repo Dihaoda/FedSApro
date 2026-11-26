@@ -219,6 +219,8 @@ def validate_config(config: Mapping[str, Any]) -> None:
             )
     if int(get_path(config, "federated.rounds")) < 1:
         raise ValueError("rounds must be positive")
+    if int(config["federated"].get("eval_max_length", get_path(config, "federated.max_length"))) < 1:
+        raise ValueError("eval_max_length must be positive")
     if float(get_path(config, "federated.server_learning_rate")) <= 0:
         raise ValueError("server_learning_rate must be positive")
     for method_name, value in config["method"].get("server_learning_rates", {}).items():
@@ -278,6 +280,25 @@ def validate_config(config: Mapping[str, Any]) -> None:
         minimum = float(harp_config.get("minimum_factor", 0.01))
         if not 0.0 <= minimum < 1.0:
             raise ValueError("method.harp_fedllm.minimum_factor must be in [0, 1)")
+        if int(harp_config.get("preservation_modes", 3)) < 2:
+            raise ValueError("method.harp_fedllm.preservation_modes must be at least 2")
+        if float(harp_config.get("preservation_gain", 0.0)) < 0.0:
+            raise ValueError("method.harp_fedllm.preservation_gain must be non-negative")
+        if float(harp_config.get("dominant_mode_gain", 0.0)) < 0.0:
+            raise ValueError("method.harp_fedllm.dominant_mode_gain must be non-negative")
+        if float(harp_config.get("preservation_residual_gain", 0.0)) < 0.0:
+            raise ValueError(
+                "method.harp_fedllm.preservation_residual_gain must be non-negative"
+            )
+        if float(harp_config.get("preservation_residual_norm_cap", 1.0)) < 0.0:
+            raise ValueError(
+                "method.harp_fedllm.preservation_residual_norm_cap must be non-negative"
+            )
+        separation = float(harp_config.get("preservation_min_separation", 0.10))
+        if not 0.0 <= separation <= 2.0:
+            raise ValueError(
+                "method.harp_fedllm.preservation_min_separation must be in [0, 2]"
+            )
     effective_batch = int(get_path(config, "federated.batch_size"))
     micro_batch = int(get_path(config, "federated.micro_batch_size"))
     if micro_batch < 1 or effective_batch < micro_batch or effective_batch % micro_batch:

@@ -272,6 +272,9 @@ def run_experiment(
     checkpoint_every = int(get_path(config, "federated.checkpoint_every"))
     labels = list(get_path(config, "data.labels"))
     max_length = int(get_path(config, "federated.max_length"))
+    evaluation_max_length = int(
+        config["federated"].get("eval_max_length", max_length)
+    )
     eval_batch_size = max(1, int(get_path(config, "federated.eval_batch_size")))
     default_server_learning_rate = float(
         get_path(config, "federated.server_learning_rate")
@@ -312,11 +315,15 @@ def run_experiment(
         cache_attack.setdefault("update_scales", {}).update(
             {name: float(value) for name, value in cache_reference_scales.items()}
         )
+        cache_federated = copy.deepcopy(config["federated"])
+        # Evaluation context length never changes a locally trained client
+        # update, so it must not invalidate otherwise identical update caches.
+        cache_federated.pop("eval_max_length", None)
         cache_signature = config_digest(
             {
                 "model": config["model"],
                 "data": config["data"],
-                "federated": config["federated"],
+                "federated": cache_federated,
                 "attack": cache_attack,
                 "seed": seed,
                 "round": round_number,
@@ -367,7 +374,7 @@ def run_experiment(
                     {
                         "model": config["model"],
                         "data": config["data"],
-                        "federated": config["federated"],
+                        "federated": cache_federated,
                         "attack": reuse_cache_attack,
                         "seed": seed,
                         "round": round_number,
@@ -642,7 +649,7 @@ def run_experiment(
                 tokenizer,
                 standard_test,
                 label_names=labels,
-                max_length=max_length,
+                max_length=evaluation_max_length,
                 batch_size=eval_batch_size,
                 device=device,
             )
@@ -651,7 +658,7 @@ def run_experiment(
                 tokenizer,
                 heterogeneous_test,
                 label_names=labels,
-                max_length=max_length,
+                max_length=evaluation_max_length,
                 batch_size=eval_batch_size,
                 device=device,
             )
@@ -663,7 +670,7 @@ def run_experiment(
                     triggered_standard_test,
                     target=backdoor_target,
                     label_names=labels,
-                    max_length=max_length,
+                    max_length=evaluation_max_length,
                     batch_size=eval_batch_size,
                     device=device,
                 )
@@ -673,7 +680,7 @@ def run_experiment(
                     triggered_heterogeneous_test,
                     target=backdoor_target,
                     label_names=labels,
-                    max_length=max_length,
+                    max_length=evaluation_max_length,
                     batch_size=eval_batch_size,
                     device=device,
                 )

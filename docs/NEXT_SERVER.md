@@ -1,9 +1,14 @@
 # Continuing on a new GPU server
 
-GitHub is the durable hand-off point. The three-scale TweetEval-Yelp study is
+GitHub is the durable hand-off point. The HARP-FedLLM six-group study is
 complete. Model caches, datasets, checkpoints, shared-update caches, raw logs,
 and credentials are not committed; frozen configs, model-specific Safe-FedLLM
 probes, final tables, checks, calibration records, and compact evidence are.
+
+The canonical final report is
+`reports/harp_fedllm_six_group_v2/REPORT.md`; its 126-row table is also
+available as `summary.csv` and `summary.json`. Recreate those files with
+`python scripts/export_harp_six_group_results.py` after restoring result trees.
 
 ## Completed scale map
 
@@ -44,7 +49,7 @@ python scripts/run_matrix.py \
   --config configs/reproduction/cross_domain_tweet_yelp_qwen3_v1.yaml \
   --models qwen2.5-3b \
   --attacks none label_flip textual_backdoor \
-  --methods fedavg indexguard flame fltrust safefedllm fedgraph \
+    --methods fedavg indexguard flame fltrust safefedllm fedgraph harp_fedllm \
   --seeds 2026 --continue-on-error \
   --manifest results/cross_domain_tweet_yelp_qwen3_v1/events.jsonl
 ```
@@ -70,3 +75,4 @@ The frozen server-step maps and rejected calibration ranges are documented in
 each scale's `CALIBRATION.md`. A future model scale or dataset must train a new
 seed-9101 probe, create its own cache root, and record a separate calibration;
 do not overwrite the completed three-scale study.
+

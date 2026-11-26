@@ -152,3 +152,4 @@ def test_per_attack_server_learning_rates_must_be_valid() -> None:
             overrides={"method.server_learning_rates.flame": {"unknown": 1.0}},
         )
 
+
